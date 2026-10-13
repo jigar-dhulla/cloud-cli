@@ -4,6 +4,7 @@ namespace App\Commands;
 
 use App\Client\Requests\UpdateCacheRequestData;
 use App\Dto\Cache;
+use App\Dto\CacheType;
 use App\Exceptions\CommandExitException;
 
 use function Laravel\Prompts\confirm;
@@ -95,16 +96,7 @@ class CacheUpdate extends BaseCommand
             fn ($resolver) => $resolver->fromInput(
                 fn ($value) => select(
                     label: 'Size',
-                    options: [
-                        '250mb' => '250 MB',
-                        '1gb' => '1 GB',
-                        '2.5gb' => '2.5 GB',
-                        '5gb' => '5 GB',
-                        '12gb' => '12 GB',
-                        '50gb' => '50 GB',
-                        '100gb' => '100 GB',
-                        '500gb' => '500 GB',
-                    ],
+                    options: $this->sizeOptions($cache),
                     default: $value ?? $cache->size,
                 ),
             ),
@@ -131,6 +123,22 @@ class CacheUpdate extends BaseCommand
             ),
             'is-public',
         )->setPreviousValue($cache->isPublic ? 'true' : 'false');
+    }
+
+    protected function sizeOptions(Cache $cache): array
+    {
+        $types = spin(
+            fn () => $this->client->caches()->types(),
+            'Fetching cache sizes...',
+        );
+
+        $type = collect($types)->first(fn (CacheType $type) => $type->type === $cache->type);
+
+        if (! $type) {
+            $this->failAndExit("Unable to find sizes for cache type: {$cache->type}");
+        }
+
+        return collect($type->sizes)->mapWithKeys(fn ($size) => [$size->value => $size->label])->toArray();
     }
 
     protected function collectDataAndUpdate(Cache $cache): Cache
