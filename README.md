@@ -232,6 +232,7 @@ op read "op://vault/stripe/api-key" | cloud secret:create --name=STRIPE_KEY -n
 | `cloud database-cluster:update`  | Update a database cluster              |
 | `cloud database-cluster:delete`  | Delete a database cluster              |
 | `cloud database-cluster:metrics` | View cluster metrics                   |
+| `cloud database-cluster:types`   | List database types and versions       |
 | `cloud database:list`            | List databases (schemas) in a cluster  |
 | `cloud database:get`             | Get database details                   |
 | `cloud database:create`          | Create a database                      |
