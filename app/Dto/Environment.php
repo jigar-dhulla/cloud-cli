@@ -3,6 +3,7 @@
 namespace App\Dto;
 
 use App\Dto\Transformers\MaskEnvironmentVariables;
+use App\Enums\EnvironmentColor;
 use App\Enums\EnvironmentStatus;
 use Carbon\CarbonImmutable;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -30,6 +31,7 @@ class Environment extends Data
         public readonly string $vanityDomain,
         public readonly string $phpMajorVersion,
         public readonly ?string $nodeVersion = null,
+        public readonly ?string $color = null,
         public readonly bool $usesOctane = false,
         public readonly bool $usesHibernation = false,
         public readonly bool $usesPushToDeploy = false,
@@ -80,6 +82,7 @@ class Environment extends Data
             'vanityDomain' => $vanityDomain,
             'phpMajorVersion' => $attributes['php_major_version'] ?? '',
             'nodeVersion' => $attributes['node_version'] ?? null,
+            'color' => $attributes['color'] ?? null,
             'usesOctane' => $attributes['uses_octane'] ?? false,
             'usesHibernation' => $attributes['uses_hibernation'] ?? false,
             'usesPushToDeploy' => $attributes['uses_push_to_deploy'] ?? false,
@@ -144,5 +147,17 @@ class Environment extends Data
         }
 
         return self::from($transformed);
+    }
+
+    public function colorEnum(): ?EnvironmentColor
+    {
+        return $this->color ? EnvironmentColor::tryFrom($this->color) : null;
+    }
+
+    public function displayName(): string
+    {
+        $dot = $this->colorEnum()?->dot();
+
+        return $dot ? "{$dot} {$this->name}" : $this->name;
     }
 }
