@@ -1,6 +1,17 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/cloud-cli/compare/v0.6.5...main)
+## [Unreleased](https://github.com/laravel/cloud-cli/compare/v0.6.6...main)
+
+## [v0.6.6](https://github.com/laravel/cloud-cli/compare/v0.6.5...v0.6.6) - 2026-10-15
+
+### What's Changed
+
+* Cache update should fetch sizes from API by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/239
+* Bump shivammathur/setup-php from 2.37.2 to 2.40.0 in the github-actions group by [@dependabot](https://github.com/dependabot)[bot] in https://github.com/laravel/cloud-cli/pull/240
+* Add database cluster types command by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/241
+* Don't crash on unknown bucket types or jurisdictions by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/242
+
+**Full Changelog**: https://github.com/laravel/cloud-cli/compare/v0.6.5...v0.6.6
 
 ## [v0.6.5](https://github.com/laravel/cloud-cli/compare/v0.6.4...v0.6.5) - 2026-10-08
 
