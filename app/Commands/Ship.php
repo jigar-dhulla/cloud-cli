@@ -60,7 +60,7 @@ class Ship extends BaseCommand
     use UpdatesBuildDeployCommands;
 
     protected $signature = 'ship
-                            {--database= : Database type or alias (postgres, postgres18, postgres17, mysql, or a full type like neon_serverless_postgres). Unversioned aliases use the newest available version. Default: postgres}
+                            {--database= : Database type or alias (postgres, postgres<version>, mysql, or a type from `cloud database:types`). Unversioned aliases use the newest available version. Default: postgres}
                             {--database-preset= : Preset tier for the database (dev, prod, scale — case-insensitive). Default: dev}
                             {--name= : Application name (non-interactive). Default: derived from repository}
                             {--region= : Region (non-interactive). Default: most-used or us-east-2}
