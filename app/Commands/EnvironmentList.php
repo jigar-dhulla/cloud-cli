@@ -48,7 +48,7 @@ class EnvironmentList extends BaseCommand
             headers: ['ID', 'Name', 'Branch', 'Status'],
             rows: $envItems->map(fn ($env) => [
                 $env->id,
-                $env->name,
+                $env->displayName(),
                 $env->branch ?? '—',
                 $env->status ? $env->statusEnum->label() : '—',
             ])->toArray(),

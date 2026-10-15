@@ -42,7 +42,7 @@ class EnvironmentResolver extends Resolver
             $environment = $this->fetch($environment->id);
         }
 
-        $this->displayResolved('Environment', $environment->name, $environment->id);
+        $this->displayResolved('Environment', $environment->displayName(), $environment->id);
 
         return $environment;
     }
@@ -61,7 +61,7 @@ class EnvironmentResolver extends Resolver
             return $matches->first();
         }
 
-        $options = $matches->mapWithKeys(fn (Environment $env) => [$env->id => $env->name])->toArray();
+        $options = $matches->mapWithKeys(fn (Environment $env) => [$env->id => $env->displayName()])->toArray();
 
         if (! $this->ensureInteractive("More than one environment deploys the {$localBranch} branch. Provide an environment ID or name.", ['options' => $options])) {
             return null;
@@ -107,7 +107,7 @@ class EnvironmentResolver extends Resolver
             return $envs->first();
         }
 
-        $options = $envs->mapWithKeys(fn ($env) => [$env->id => $env->name])->toArray();
+        $options = $envs->mapWithKeys(fn (Environment $env) => [$env->id => $env->displayName()])->toArray();
 
         $this->ensureInteractive('Multiple environments found. Provide an environment ID or name.', ['options' => $options]);
 

@@ -30,6 +30,7 @@ class EnvironmentGet extends BaseCommand
         dataList([
             'ID' => $environment->id,
             'Name' => $environment->name,
+            'Color' => $environment->colorEnum() ? "{$environment->colorEnum()->dot()} {$environment->color}" : '—',
             'Branch' => $environment->branch ?? 'N/A',
             'Status' => $environment->statusEnum->label(),
             'Web URL' => $environment->url,
