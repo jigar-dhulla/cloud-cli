@@ -61,7 +61,7 @@ class EnvironmentResolver extends Resolver
             return $matches->first();
         }
 
-        $options = $matches->mapWithKeys(fn (Environment $env) => [$env->id => $env->displayName()])->toArray();
+        $options = $matches->mapWithKeys(fn (Environment $env) => [$env->id => $env->name])->toArray();
 
         if (! $this->ensureInteractive("More than one environment deploys the {$localBranch} branch. Provide an environment ID or name.", ['options' => $options])) {
             return null;
@@ -69,7 +69,7 @@ class EnvironmentResolver extends Resolver
 
         $selectedEnv = select(
             label: 'Environment',
-            options: $options,
+            options: $matches->mapWithKeys(fn (Environment $env) => [$env->id => $env->displayName()])->toArray(),
             info: fn ($id) => $id,
             hint: "More than one environment deploys the {$localBranch} branch.",
         );
@@ -107,13 +107,13 @@ class EnvironmentResolver extends Resolver
             return $envs->first();
         }
 
-        $options = $envs->mapWithKeys(fn (Environment $env) => [$env->id => $env->displayName()])->toArray();
+        $options = $envs->mapWithKeys(fn (Environment $env) => [$env->id => $env->name])->toArray();
 
         $this->ensureInteractive('Multiple environments found. Provide an environment ID or name.', ['options' => $options]);
 
         $selectedEnv = select(
             label: 'Environment',
-            options: $options,
+            options: $envs->mapWithKeys(fn (Environment $env) => [$env->id => $env->displayName()])->toArray(),
             default: $envs->firstWhere('id', $this->application()->defaultEnvironmentId)?->id,
             info: fn ($id) => $id,
         );
