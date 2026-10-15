@@ -75,3 +75,16 @@ it('creates a bucket non-interactively without allowed origins', function () {
     expect($this->sent->body)->not->toHaveKey('allowed_origins')
         ->and($this->sent->body['jurisdiction'])->toBe('default');
 });
+
+it('reads a bucket with a type and jurisdiction the cli does not know about', function () {
+    $bucket = bucketResponse(['id' => 'fls-new', 'attributes' => ['type' => 'some_new_type', 'jurisdiction' => 'fedramp']]);
+
+    MockClient::global()->addResponses([
+        GetObjectStorageBucketRequest::class => MockResponse::make(['data' => $bucket], 200),
+    ]);
+
+    $exitCode = Artisan::call('bucket:get', ['bucket' => 'fls-new', '--json' => true, '--no-interaction' => true]);
+
+    expect($exitCode)->toBe(0)
+        ->and(json_decode(Artisan::output(), true))->toMatchArray(['type' => 'some_new_type', 'jurisdiction' => 'fedramp']);
+});

@@ -2,9 +2,7 @@
 
 namespace App\Dto;
 
-use App\Enums\FilesystemJurisdiction;
 use App\Enums\FilesystemStatus;
-use App\Enums\FilesystemType;
 use App\Enums\FilesystemVisibility;
 use Carbon\CarbonImmutable;
 use Spatie\LaravelData\Attributes\WithCast;
@@ -17,14 +15,13 @@ class ObjectStorageBucket extends Data
     public function __construct(
         public readonly string $id,
         public readonly string $name,
-        #[WithCast(EnumCast::class)]
-        public readonly FilesystemType $type,
+        // Kept as strings so a type or jurisdiction the CLI doesn't know yet still reads.
+        public readonly string $type,
         #[WithCast(EnumCast::class)]
         public readonly FilesystemStatus $status,
         #[WithCast(EnumCast::class)]
         public readonly FilesystemVisibility $visibility,
-        #[WithCast(EnumCast::class)]
-        public readonly FilesystemJurisdiction $jurisdiction,
+        public readonly string $jurisdiction,
         public readonly ?string $endpoint = null,
         public readonly ?string $url = null,
         public readonly ?array $allowedOrigins = null,
