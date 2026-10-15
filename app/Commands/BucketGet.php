@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\Dto\ObjectStorageBucket;
+use App\Enums\FilesystemJurisdiction;
 
 use function Laravel\Prompts\intro;
 
@@ -27,10 +28,10 @@ class BucketGet extends BaseCommand
         dataList([
             'ID' => $bucket->id,
             'Name' => $bucket->name,
-            'Type' => $bucket->type->value,
+            'Type' => $bucket->type,
             'Status' => $bucket->status->value,
             'Visibility' => $bucket->visibility->value,
-            'Jurisdiction' => $bucket->jurisdiction->label(),
+            'Jurisdiction' => FilesystemJurisdiction::tryFrom($bucket->jurisdiction)?->label() ?? $bucket->jurisdiction,
             'Endpoint' => $bucket->endpoint ?? '—',
             'URL' => $bucket->url ?? '—',
             'Created At' => $bucket->createdAt?->toIso8601String() ?? '—',

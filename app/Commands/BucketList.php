@@ -51,7 +51,7 @@ class BucketList extends BaseCommand
             rows: $buckets->map(fn (ObjectStorageBucket $b) => [
                 $b->id,
                 $b->name,
-                $b->type->value ?? $b->type->name ?? '—',
+                $b->type,
                 $b->status->value ?? $b->status->name ?? '—',
                 $b->visibility->value ?? $b->visibility->name ?? '—',
                 '—',
