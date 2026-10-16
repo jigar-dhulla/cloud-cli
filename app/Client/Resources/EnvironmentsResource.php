@@ -16,6 +16,7 @@ use App\Client\Resources\Environments\AttachEnvironmentSecretsRequest;
 use App\Client\Resources\Environments\CreateEnvironmentRequest;
 use App\Client\Resources\Environments\DeleteEnvironmentRequest;
 use App\Client\Resources\Environments\DeleteEnvironmentVariablesRequest;
+use App\Client\Resources\Environments\DetachEnvironmentSecretRequest;
 use App\Client\Resources\Environments\GetEnvironmentMetricsRequest;
 use App\Client\Resources\Environments\GetEnvironmentRequest;
 use App\Client\Resources\Environments\ListEnvironmentLogsRequest;
@@ -99,6 +100,14 @@ class EnvironmentsResource extends Resource
     public function attachSecrets(AttachEnvironmentSecretsRequestData $data): Environment
     {
         $request = new AttachEnvironmentSecretsRequest($data);
+        $response = $this->send($request);
+
+        return $request->createDtoFromResponse($response);
+    }
+
+    public function detachSecret(string $environmentId, string $secretId): Environment
+    {
+        $request = new DetachEnvironmentSecretRequest($environmentId, $secretId);
         $response = $this->send($request);
 
         return $request->createDtoFromResponse($response);
