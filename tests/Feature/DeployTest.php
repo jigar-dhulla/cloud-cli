@@ -3,6 +3,7 @@
 use App\Client\Resources\Applications\ListApplicationsRequest;
 use App\Client\Resources\Deployments\GetDeploymentRequest;
 use App\Client\Resources\Deployments\InitiateDeploymentRequest;
+use App\Client\Resources\Deployments\ListDeploymentsRequest;
 use App\Client\Resources\Environments\GetEnvironmentRequest;
 use App\Client\Resources\Environments\ListEnvironmentsRequest;
 use App\ConfigRepository;
@@ -315,4 +316,63 @@ it('deploys to specific application by ID', function () {
         'application' => 'app-123',
         'environment' => 'production',
     ])->assertSuccessful();
+});
+
+function setupFailedDeployMocks(): void
+{
+    setupSuccessfulDeployMocks();
+
+    $polls = 0;
+
+    MockClient::global()->addResponses([
+        ListDeploymentsRequest::class => MockResponse::make([
+            'data' => [createDeploymentResponse('build.running')['data']],
+            'links' => ['next' => null],
+        ], 200),
+
+        // Throwing instead of hanging if the watcher never treats `failed` as finished.
+        GetDeploymentRequest::class => function () use (&$polls) {
+            if (++$polls > 20) {
+                throw new RuntimeException('Deployment watcher did not stop on a failed status.');
+            }
+
+            return MockResponse::make(
+                createDeploymentResponse('failed', ['attributes' => ['status' => 'failed', 'failure_reason' => 'Out of memory']]),
+                200,
+            );
+        },
+    ]);
+}
+
+it('stops watching and fails when the deployment reaches the failed status', function () {
+    Prompt::fake();
+
+    $this->mockGit->shouldReceive('hasRemote')->andReturn(true);
+    $this->mockGit->shouldReceive('remoteRepo')->andReturn('user/my-app');
+
+    setupFailedDeployMocks();
+
+    $this->artisan('deploy', [
+        'application' => 'My App',
+        'environment' => 'production',
+        '--json' => true,
+        '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('"failure_reason":"Out of memory"')
+        ->assertFailed();
+});
+
+it('stops monitoring when the deployment reaches the failed status', function () {
+    $this->mockGit->shouldReceive('hasRemote')->andReturn(true);
+    $this->mockGit->shouldReceive('remoteRepo')->andReturn('user/my-app');
+
+    setupFailedDeployMocks();
+
+    $this->artisan('deploy:monitor', [
+        'application' => 'My App',
+        'environment' => 'production',
+        '--no-interaction' => true,
+    ])
+        ->expectsOutputToContain('"status":"failed"')
+        ->assertSuccessful();
 });
