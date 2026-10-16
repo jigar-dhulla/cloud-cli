@@ -461,7 +461,7 @@ function metricsResponse(array $data, array $overrides = []): array
         'data' => $data,
         'meta' => [
             'period' => '24h',
-            'available_periods' => ['6h', '24h', '3d', '7d', '30d'],
+            'available_periods' => ['1h', '6h', '24h', '3d', '7d', '30d'],
         ],
     ], $overrides);
 }

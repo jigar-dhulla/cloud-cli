@@ -16,7 +16,7 @@ class WebsocketClusterMetrics extends BaseCommand
 
     protected $signature = 'websocket-cluster:metrics
                             {cluster? : The cluster ID or name}
-                            {--period=24h : Time period (6h, 24h, 3d, 7d, 30d)}';
+                            {--period=24h : Time period (1h, 6h, 24h, 3d, 7d, 30d)}';
 
     protected $description = 'View WebSocket cluster metrics';
 
