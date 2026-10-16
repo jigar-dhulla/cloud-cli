@@ -28,7 +28,9 @@ class ApplicationCreate extends BaseCommand
                             {--repository= : Repository (owner/repo format)}
                             {--source-provider= : Source provider (github, gitlab, gitlab_self_hosted, bitbucket). Default: detected from the origin remote}
                             {--region= : Application region}
-                            {--root-directory= : Repository subdirectory containing the app (monorepos)}';
+                            {--root-directory= : Repository subdirectory containing the app (monorepos)}
+                            {--build-command= : Build command to run on deploy}
+                            {--cluster= : Dedicated cluster ID to deploy to (see dedicated-cluster:list)}';
 
     protected $description = 'Create a new application';
 
@@ -103,6 +105,9 @@ class ApplicationCreate extends BaseCommand
         // Defined but never prompted, so a validation error can name the value we sent.
         $this->form()->define('root_directory', fn ($resolver) => $resolver);
 
+        $this->form()->define('build_command', fn ($resolver) => $resolver);
+        $this->form()->define('cluster_id', fn ($resolver) => $resolver, 'cluster');
+
         $rootDirectory = $this->form()->get('root_directory');
 
         return spin(
@@ -113,6 +118,8 @@ class ApplicationCreate extends BaseCommand
                     region: $this->form()->get('region'),
                     rootDirectory: $rootDirectory === '' ? null : $rootDirectory,
                     sourceProvider: $sourceProvider,
+                    buildCommand: $this->form()->get('build_command') ?: null,
+                    clusterId: $this->form()->get('cluster_id') ?: null,
                 ),
             ),
             'Creating application...',

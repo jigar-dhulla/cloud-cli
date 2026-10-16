@@ -37,6 +37,9 @@ class ApplicationGet extends BaseCommand
                 ? null
                 : app(SourceProviderManager::class)->forRepository($repository)->repositoryUrl($repository),
             'Root Directory' => $application->rootDirectory,
+            'Framework' => $application->framework,
+            'Language' => $application->language,
+            'Notes' => $application->notes,
             'Environments' => collect($application->environments)->map(fn ($env) => [$env->name, $env->id])->toArray(),
             'Organization' => [
                 [$application->organization->name, $application->organization->id],
