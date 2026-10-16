@@ -12,7 +12,7 @@ class InstanceSizeOption extends Data
         public readonly string $description,
         public readonly string $cpuType,
         public readonly string $computeClass,
-        public readonly int $cpuCount,
+        public readonly int|float $cpuCount,
         public readonly int $memoryMib,
     ) {
         //
