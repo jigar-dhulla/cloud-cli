@@ -66,6 +66,8 @@ class Ship extends BaseCommand
                             {--region= : Region (non-interactive). Default: most-used or us-east-2}
                             {--root-directory= : Repository subdirectory containing the app (monorepos)}
                             {--source-provider= : Source provider (github, gitlab, gitlab_self_hosted, bitbucket). Default: detected from the origin remote}
+                            {--build-command= : Build command to run on deploy}
+                            {--cluster= : Dedicated cluster ID to deploy to (see dedicated-cluster:list)}
 ';
 
     protected $description = 'Ship a new application to Laravel Cloud';
@@ -265,6 +267,8 @@ class Ship extends BaseCommand
             region: $region,
             rootDirectory: $this->rootDirectoryOption(),
             sourceProvider: $this->resolveSourceProvider(),
+            buildCommand: $this->option('build-command') ?: null,
+            clusterId: $this->option('cluster') ?: null,
         );
 
         try {
@@ -334,6 +338,8 @@ class Ship extends BaseCommand
                     region: $this->form()->get('region'),
                     rootDirectory: $this->rootDirectoryOption(),
                     sourceProvider: $this->resolveSourceProvider(),
+                    buildCommand: $this->option('build-command') ?: null,
+                    clusterId: $this->option('cluster') ?: null,
                 ),
             ),
         );

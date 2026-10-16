@@ -14,6 +14,8 @@ class CreateApplicationRequestData extends RequestData
         public readonly string $region,
         ?string $rootDirectory = null,
         public readonly ?SourceProvider $sourceProvider = null,
+        public readonly ?string $buildCommand = null,
+        public readonly ?string $clusterId = null,
     ) {
         // The API rejects a trailing slash, which is what shell completion gives you.
         $rootDirectory = rtrim((string) $rootDirectory, '/');
@@ -29,6 +31,8 @@ class CreateApplicationRequestData extends RequestData
             'region' => $this->region,
             'root_directory' => $this->rootDirectory,
             'source_control_provider_type' => $this->sourceProvider?->value,
+            'build_command' => $this->buildCommand,
+            'cluster_id' => $this->clusterId,
         ]);
     }
 }
