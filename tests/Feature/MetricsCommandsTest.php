@@ -12,6 +12,7 @@ use App\Client\Resources\WebSocketApplications\GetWebSocketApplicationRequest;
 use App\Client\Resources\WebSocketClusters\GetWebSocketClusterMetricsRequest;
 use App\Client\Resources\WebSocketClusters\GetWebSocketClusterRequest;
 use App\ConfigRepository;
+use App\Enums\MetricPeriod;
 use Illuminate\Support\Facades\Artisan;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -118,6 +119,20 @@ it('sends the requested period', function (string $name) {
     expect($mockClient->getLastPendingRequest()->query()->get('period'))->toBe('7d');
 })->with('metrics commands');
 
+it('accepts every period the API supports', function (string $name, string $period) {
+    $mockClient = mockMetrics($name);
+
+    expect(callMetrics($name, ['--period' => $period]))->toBe(0);
+
+    expect($mockClient->getLastPendingRequest()->query()->get('period'))->toBe($period);
+})->with('metrics commands')->with(MetricPeriod::values());
+
+it('lists every supported period in the help text', function (string $name) {
+    $option = Artisan::all()[metricsCommands()[$name]['command']]->getDefinition()->getOption('period');
+
+    expect($option->getDescription())->toBe('Time period ('.implode(', ', MetricPeriod::values()).')');
+})->with('metrics commands');
+
 it('rejects a period the API does not support', function (string $name) {
     $mockClient = mockMetrics($name);
 
@@ -133,7 +148,7 @@ it('includes the period metadata in JSON', function (string $name) {
 
     expect(json_decode(Artisan::output(), true))->toMatchArray([
         'period' => '24h',
-        'availablePeriods' => ['6h', '24h', '3d', '7d', '30d'],
+        'availablePeriods' => ['1h', '6h', '24h', '3d', '7d', '30d'],
     ]);
 })->with('metrics commands');
 

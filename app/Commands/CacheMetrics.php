@@ -16,7 +16,7 @@ class CacheMetrics extends BaseCommand
 
     protected $signature = 'cache:metrics
                             {cache? : The cache ID or name}
-                            {--period=24h : Time period (6h, 24h, 3d, 7d, 30d)}';
+                            {--period=24h : Time period (1h, 6h, 24h, 3d, 7d, 30d)}';
 
     protected $description = 'View cache metrics';
 
