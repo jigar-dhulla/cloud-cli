@@ -189,6 +189,7 @@ Secrets are organization-wide encrypted values that can be attached to environme
 | `cloud secret:delete`             | Delete a secret                         |
 | `cloud environment-secret:list`   | List secrets attached to an environment |
 | `cloud environment-secret:attach` | Attach secrets to an environment        |
+| `cloud environment-secret:detach` | Detach secrets from an environment      |
 
 `secret:create` and `secret:update` encrypt with `ext-sodium`, which ships with PHP but is a separate package on some distributions. No other command needs it.
 
