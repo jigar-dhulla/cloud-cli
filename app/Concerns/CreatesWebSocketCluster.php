@@ -5,7 +5,8 @@ namespace App\Concerns;
 use App\Client\Requests\CreateWebSocketClusterRequestData;
 use App\Dto\Region;
 use App\Dto\WebsocketCluster;
-use App\Enums\WebsocketServerMaxConnection;
+use App\Dto\WebsocketClusterType;
+use App\Enums\WebsocketServerType;
 
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
@@ -13,8 +14,12 @@ use function Laravel\Prompts\text;
 
 trait CreatesWebSocketCluster
 {
+    use InteractsWithWebSocketClusterTypes;
+
     protected function createWebSocketCluster(array $defaults = []): WebsocketCluster
     {
+        $type = $this->creatableWebSocketClusterType();
+
         $this->form()->prompt(
             'name',
             fn ($resolver) => $resolver->fromInput(
@@ -36,7 +41,7 @@ trait CreatesWebSocketCluster
             fn ($resolver) => $resolver->fromInput(
                 fn (?string $value) => select(
                     label: 'Region',
-                    options: collect($regions)->mapWithKeys(fn (Region $r) => [$r->value => $r->label])->toArray(),
+                    options: $this->webSocketClusterRegionOptions($type, $regions),
                     default: $value ?? $defaults['region'] ?? null,
                     required: true,
                 ),
@@ -48,8 +53,8 @@ trait CreatesWebSocketCluster
             fn ($resolver) => $resolver->fromInput(
                 fn ($value) => select(
                     label: 'Max connections',
-                    options: collect(WebsocketServerMaxConnection::cases())->mapWithKeys(fn ($case) => [$case->value => $case->value])->toArray(),
-                    default: $value ?? $defaults['max_connections'] ?? WebsocketServerMaxConnection::ONE_HUNDRED->value,
+                    options: $this->maxConnectionOptions($type),
+                    default: $value ?? $defaults['max_connections'] ?? $this->defaultMaxConnections($type),
                     required: true,
                 ),
             ),
@@ -69,9 +74,13 @@ trait CreatesWebSocketCluster
 
     protected function createWebSocketClusterWithOptions(array $options): WebsocketCluster
     {
+        $type = $this->creatableWebSocketClusterType();
+
         $name = $options['name'] ?? '';
         $region = $options['region'] ?? null;
-        $maxConnections = (int) ($options['max_connections'] ?? WebsocketServerMaxConnection::ONE_HUNDRED->value);
+        $maxConnections = isset($options['max_connections'])
+            ? $this->validateMaxConnections($type, $options['max_connections'])
+            : $this->defaultMaxConnections($type);
 
         return spin(
             fn () => $this->client->websocketClusters()->create(
@@ -83,5 +92,34 @@ trait CreatesWebSocketCluster
             ),
             'Creating WebSocket cluster...',
         );
+    }
+
+    protected function creatableWebSocketClusterType(): WebsocketClusterType
+    {
+        $type = $this->webSocketClusterType(WebsocketServerType::REVERB->value);
+
+        if (! $type->available) {
+            $this->failAndExit("Your organization cannot create {$type->label} clusters.");
+        }
+
+        return $type;
+    }
+
+    /**
+     * @param  array<Region>  $regions
+     * @return array<string, string>
+     */
+    protected function webSocketClusterRegionOptions(WebsocketClusterType $type, array $regions): array
+    {
+        $labels = collect($regions)->mapWithKeys(fn (Region $r) => [$r->value => $r->label]);
+
+        return collect($type->regions)
+            ->mapWithKeys(fn (string $region) => [$region => $labels->get($region, $region)])
+            ->toArray();
+    }
+
+    protected function defaultMaxConnections(WebsocketClusterType $type): int
+    {
+        return min(array_keys($this->maxConnectionOptions($type)));
     }
 }

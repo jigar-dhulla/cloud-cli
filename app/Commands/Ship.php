@@ -714,7 +714,6 @@ class Ship extends BaseCommand
     protected function provisionWebsocketOpinionated(): ?string
     {
         $defaults = $this->getWebSocketClusterDefaults();
-        $defaults['max_connections'] = $defaults['max_connections'] ?? 100;
 
         $clusters = $this->client->websocketClusters()->list()->collect();
 

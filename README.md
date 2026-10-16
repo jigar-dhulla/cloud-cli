@@ -310,6 +310,7 @@ Without an environment argument, `resend:attach` offers only environments withou
 | `cloud websocket-cluster:update`      | Update a WebSocket cluster     |
 | `cloud websocket-cluster:delete`      | Delete a WebSocket cluster     |
 | `cloud websocket-cluster:metrics`     | View cluster metrics           |
+| `cloud websocket-cluster:types`       | List cluster types and tiers   |
 | `cloud websocket-application:list`    | List WebSocket applications    |
 | `cloud websocket-application:get`     | Get application details        |
 | `cloud websocket-application:create`  | Create a WebSocket application |

@@ -218,6 +218,26 @@ function websocketClusterResponse(array $overrides = []): array
     ];
 }
 
+function websocketClusterTypesResponse(array $overrides = []): array
+{
+    return [
+        'data' => [
+            array_merge([
+                'type' => 'reverb',
+                'label' => 'Laravel Reverb',
+                'available' => true,
+                'regions' => ['us-east-1', 'eu-central-1'],
+                'max_connections' => [
+                    ['value' => 200, 'label' => '200 connections', 'available' => true],
+                    ['value' => 100, 'label' => '100 connections', 'available' => true],
+                    ['value' => 500, 'label' => '500 connections', 'available' => true],
+                    ['value' => 2000, 'label' => '2,000 connections', 'available' => false],
+                ],
+            ], $overrides),
+        ],
+    ];
+}
+
 function databaseSnapshotResponse(array $overrides = []): array
 {
     return [

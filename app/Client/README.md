@@ -133,6 +133,7 @@ $data = $response->json();
 - `CreateWebSocketClusterRequest` - Create a new cluster
 - `UpdateWebSocketClusterRequest` - Update a cluster
 - `DeleteWebSocketClusterRequest` - Delete a cluster
+- `ListWebSocketClusterTypesRequest` - List cluster types with their regions and max connection tiers
 
 #### WebSocket Applications
 - `ListWebSocketApplicationsRequest` - List applications for a cluster
