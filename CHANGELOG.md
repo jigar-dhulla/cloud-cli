@@ -1,6 +1,25 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/cloud-cli/compare/v0.6.6...main)
+## [Unreleased](https://github.com/laravel/cloud-cli/compare/v0.6.7...main)
+
+## [v0.6.7](https://github.com/laravel/cloud-cli/compare/v0.6.6...v0.6.7) - 2026-10-16
+
+### What's Changed
+
+* Show the environment color after resolving by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/243
+* Dependency updates by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/263
+* Treat failed deployment status as finished by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/244
+* Add 1h metric period by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/245
+* Add --name and --description to database-snapshot:create by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/246
+* Allow fractional instance size CPU counts by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/247
+* Match command relationships by ID and add failure reason by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/251
+* Add build command and cluster options to application:create by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/257
+* Add application:delete-avatar by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/258
+* Add environment-secret:detach by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/261
+* Use API WebSocket cluster types and tiers by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/262
+* Use API database presets by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/255
+
+**Full Changelog**: https://github.com/laravel/cloud-cli/compare/v0.6.6...v0.6.7
 
 ## [v0.6.6](https://github.com/laravel/cloud-cli/compare/v0.6.5...v0.6.6) - 2026-10-15
 
