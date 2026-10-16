@@ -4,6 +4,7 @@ namespace App\Concerns;
 
 use App\Client\Requests\CreateDatabaseClusterRequestData;
 use App\Dto\DatabaseCluster;
+use App\Dto\DatabasePreset;
 use App\Dto\DatabaseType;
 use App\Dto\Region;
 use App\Enums\DatabaseClusterPreset;
@@ -128,29 +129,41 @@ trait CreatesDatabaseCluster
 
     protected function databaseClusterConfigFromPreset(DatabaseType $type): ?array
     {
-        $clusterPreset = DatabaseClusterPreset::from($type->type);
-        $presets = $clusterPreset->presets();
-        $presets['Custom'] = [];
+        $region = $this->form()->get('region');
 
-        if ($this->databaseClusterPreset) {
-            return $this->databaseClusterPreset === 'Custom' ? null : $presets[$this->databaseClusterPreset];
+        $presets = collect(spin(
+            fn () => $this->client->databaseClusters()->presets($type->type, $region),
+            'Fetching database presets...',
+        ))->keyBy('key');
+
+        if ($presets->isEmpty() && ! $this->isInteractive()) {
+            throw new RuntimeException(sprintf('No presets are available for database type "%s" in region "%s".', $type->type, $region));
+        }
+
+        if ($this->databaseClusterPreset === 'custom') {
+            return null;
+        }
+
+        // The cached choice may not exist for a region picked on a later attempt.
+        if ($this->databaseClusterPreset !== null && $presets->has($this->databaseClusterPreset)) {
+            return $presets->get($this->databaseClusterPreset)->config;
         }
 
         $this->databaseClusterPreset = select(
             label: 'Configuration',
-            options: collect($presets)->keys()->mapWithKeys(fn ($key) => [$key => $key])->toArray(),
-            default: array_key_first($presets),
+            options: $presets->map(fn (DatabasePreset $preset) => $preset->label)->put('custom', 'Custom')->toArray(),
+            default: $presets->keys()->first() ?? 'custom',
             required: true,
-            info: fn ($key) => count($presets[$key]) > 0
-                ? $clusterPreset->description()($presets[$key])
-                : $key.' configuration',
+            info: fn ($key) => $presets->has($key)
+                ? DatabaseClusterPreset::from($type->type)->description()($presets->get($key)->config)
+                : 'Custom configuration',
         );
 
-        if ($this->databaseClusterPreset !== 'Custom') {
-            return $presets[$this->databaseClusterPreset];
+        if ($this->databaseClusterPreset === 'custom') {
+            return null;
         }
 
-        return null;
+        return $presets->get($this->databaseClusterPreset)->config;
     }
 
     protected function promptForDatabaseClusterConfig(DatabaseType $type): array
@@ -235,33 +248,15 @@ trait CreatesDatabaseCluster
             ])->toArray();
     }
 
-    protected function createDatabaseClusterWithOptions(string $type, string $version, string $preset, string $name, string $region): DatabaseCluster
+    protected function createDatabaseClusterWithOptions(string $type, string $version, DatabasePreset $preset, string $name, string $region): DatabaseCluster
     {
-        $enum = DatabaseClusterPreset::tryFrom($type);
-
-        if ($enum === null) {
-            throw new RuntimeException(
-                'Invalid database type. Must be one of: '.implode(', ', array_map(fn (DatabaseClusterPreset $e) => $e->value, DatabaseClusterPreset::cases())),
-            );
-        }
-
-        $presets = $enum->presets();
-
-        if (! array_key_exists($preset, $presets)) {
-            throw new RuntimeException(
-                'Invalid database preset. Must be one of: '.implode(', ', array_keys($presets)),
-            );
-        }
-
-        $config = $presets[$preset];
-
         return spin(
             fn () => $this->client->databaseClusters()->create(
                 new CreateDatabaseClusterRequestData(
                     type: $type,
                     name: $name,
                     region: $region,
-                    config: $config,
+                    config: $preset->config,
                     version: $version,
                 ),
             ),

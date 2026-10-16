@@ -5,7 +5,10 @@ namespace App\Enums;
 use Closure;
 
 /**
- * The database types the CLI ships opinionated presets for.
+ * The database types the CLI offers opinionated presets for.
+ *
+ * The presets themselves come from GET /databases/presets, since sizes vary by
+ * region and plan.
  *
  * The API describes a database by a versionless type plus a separate engine
  * version (see GET /databases/types), so the cases here mirror the API's type
@@ -45,55 +48,6 @@ enum DatabaseClusterPreset: string
         return [$preset, $version];
     }
 
-    public function presets(): array
-    {
-        return match ($this) {
-            self::LaravelMysql => [
-                'Dev' => [
-                    'size' => 'db-flex.m-1vcpu-512mb',
-                    'storage' => 5,
-                    'retention_days' => 1,
-                    'uses_scheduled_snapshots' => false,
-                    'is_public' => false,
-                ],
-                'Prod' => [
-                    'size' => 'db-flex.m-1vcpu-2gb',
-                    'storage' => 20,
-                    'retention_days' => 7,
-                    'uses_scheduled_snapshots' => false,
-                    'is_public' => false,
-                ],
-                'Scale' => [
-                    'size' => 'db-pro.m-4vcpu-16gb',
-                    'storage' => 200,
-                    'retention_days' => 14,
-                    'uses_scheduled_snapshots' => false,
-                    'is_public' => false,
-                ],
-            ],
-            self::NeonServerlessPostgres => [
-                'Dev' => [
-                    'cu_min' => 0.25,
-                    'cu_max' => 0.25,
-                    'suspend_seconds' => 300,
-                    'retention_days' => 0,
-                ],
-                'Prod' => [
-                    'cu_min' => 0.25,
-                    'cu_max' => 1,
-                    'suspend_seconds' => 0,
-                    'retention_days' => 7,
-                ],
-                'Scale' => [
-                    'cu_min' => 1,
-                    'cu_max' => 4,
-                    'suspend_seconds' => 0,
-                    'retention_days' => 14,
-                ],
-            ],
-        };
-    }
-
     public function description(): Closure
     {
         return match ($this) {
@@ -101,8 +55,8 @@ enum DatabaseClusterPreset: string
                 '%s · %sGB storage · %d %s backups',
                 str($preset['size'])
                     ->replaceMatches(
-                        '/^db-(pro|flex)\.(m|c|g)-(\d+)vcpu-(\d+)(gb|mb)$/',
-                        '$1 ($3 vCPU · $4 $5 RAM)',
+                        '/^mysql-(pro|flex)-(\d+)(gb|mb)$/',
+                        '$1 ($2 $3 RAM)',
                     )
                     ->replace('gb', 'GiB')
                     ->replace('mb', 'MiB')
