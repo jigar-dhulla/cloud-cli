@@ -9,8 +9,10 @@ use App\Client\Resources\WebSocketClusters\DeleteWebSocketClusterRequest;
 use App\Client\Resources\WebSocketClusters\GetWebSocketClusterMetricsRequest;
 use App\Client\Resources\WebSocketClusters\GetWebSocketClusterRequest;
 use App\Client\Resources\WebSocketClusters\ListWebSocketClustersRequest;
+use App\Client\Resources\WebSocketClusters\ListWebSocketClusterTypesRequest;
 use App\Client\Resources\WebSocketClusters\UpdateWebSocketClusterRequest;
 use App\Dto\WebsocketCluster;
+use App\Dto\WebsocketClusterType;
 use App\Dto\WebsocketMetrics;
 use Saloon\PaginationPlugin\Paginator;
 
@@ -58,5 +60,16 @@ class WebSocketClustersResource extends Resource
     public function delete(string $clusterId): void
     {
         $this->send(new DeleteWebSocketClusterRequest($clusterId));
+    }
+
+    /**
+     * @return array<WebsocketClusterType>
+     */
+    public function types(): array
+    {
+        $request = new ListWebSocketClusterTypesRequest;
+        $response = $this->send($request);
+
+        return $request->createDtoFromResponse($response);
     }
 }

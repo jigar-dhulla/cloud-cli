@@ -18,7 +18,7 @@ class WebsocketApplicationCreate extends BaseCommand
                             {--name= : Application name}
                             {--ping-interval= : Ping interval in seconds}
                             {--activity-timeout= : Activity timeout in seconds}
-                            {--allowed-origins= : Allowed origins (newline-separated)}';
+                            {--allowed-origins= : Origins allowed to connect, comma-separated (https://example.com)}';
 
     protected $description = 'Create a WebSocket application';
 
