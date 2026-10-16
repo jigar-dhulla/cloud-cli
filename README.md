@@ -150,13 +150,14 @@ Many commands accept an optional resource ID/name and support `--json` for machi
 
 ### Applications
 
-| Command                    | Description             |
-| -------------------------- | ----------------------- |
-| `cloud application:list`   | List applications       |
-| `cloud application:get`    | Get application details |
-| `cloud application:create` | Create an application   |
-| `cloud application:update` | Update an application   |
-| `cloud application:delete` | Delete an application   |
+| Command                           | Description                    |
+| --------------------------------- | ------------------------------ |
+| `cloud application:list`          | List applications              |
+| `cloud application:get`           | Get application details        |
+| `cloud application:create`        | Create an application          |
+| `cloud application:update`        | Update an application          |
+| `cloud application:delete`        | Delete an application          |
+| `cloud application:delete-avatar` | Remove an application's avatar |
 
 ### Environments
 

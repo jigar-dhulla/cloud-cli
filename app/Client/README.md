@@ -31,6 +31,7 @@ $data = $response->json();
 - `GetApplicationRequest` - Get a specific application
 - `CreateApplicationRequest` - Create a new application
 - `UpdateApplicationRequest` - Update an application
+- `DeleteApplicationAvatarRequest` - Remove an application's avatar
 
 #### Environments
 - `ListEnvironmentsRequest` - List environments for an application
