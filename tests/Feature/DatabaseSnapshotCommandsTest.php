@@ -1,6 +1,7 @@
 <?php
 
 use App\Client\Resources\DatabaseClusters\GetDatabaseClusterRequest;
+use App\Client\Resources\DatabaseSnapshots\CreateDatabaseSnapshotRequest;
 use App\Client\Resources\DatabaseSnapshots\DeleteDatabaseSnapshotRequest;
 use App\Client\Resources\DatabaseSnapshots\GetDatabaseSnapshotRequest;
 use App\Client\Resources\DatabaseSnapshots\ListDatabaseSnapshotsRequest;
@@ -32,6 +33,7 @@ function setupDatabaseSnapshotMocks(): void
         ], 200),
         GetDatabaseSnapshotRequest::class => MockResponse::make(['data' => $snapshot], 200),
         DeleteDatabaseSnapshotRequest::class => MockResponse::make([], 204),
+        CreateDatabaseSnapshotRequest::class => MockResponse::make(['data' => $snapshot], 201),
     ]);
 }
 
@@ -78,4 +80,47 @@ it('still lists snapshots under the cluster', function () {
         return $request instanceof ListDatabaseSnapshotsRequest
             && $request->resolveEndpoint() === '/databases/clusters/db-123/snapshots';
     });
+});
+
+it('creates a snapshot headlessly from the name and description options', function () {
+    setupDatabaseSnapshotMocks();
+
+    $this->artisan('database-snapshot:create', [
+        'cluster' => 'db-123',
+        '--name' => 'before-migration',
+        '--description' => 'Pre-deploy backup',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    MockClient::global()->assertSent(function ($request) {
+        return $request instanceof CreateDatabaseSnapshotRequest
+            && $request->resolveEndpoint() === '/databases/clusters/db-123/snapshots'
+            && $request->body()->all() === ['name' => 'before-migration', 'description' => 'Pre-deploy backup'];
+    });
+});
+
+it('omits the description when none is given headlessly', function () {
+    setupDatabaseSnapshotMocks();
+
+    $this->artisan('database-snapshot:create', [
+        'cluster' => 'db-123',
+        '--name' => 'before-migration',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    MockClient::global()->assertSent(function ($request) {
+        return $request instanceof CreateDatabaseSnapshotRequest
+            && $request->body()->all() === ['name' => 'before-migration'];
+    });
+});
+
+it('requires a name when creating a snapshot headlessly', function () {
+    setupDatabaseSnapshotMocks();
+
+    $this->artisan('database-snapshot:create', [
+        'cluster' => 'db-123',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    MockClient::global()->assertNotSent(CreateDatabaseSnapshotRequest::class);
 });
