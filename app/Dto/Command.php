@@ -25,10 +25,9 @@ class Command extends Data
         public readonly ?CarbonImmutable $finishedAt = null,
         #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
         public readonly ?CarbonImmutable $createdAt = null,
-        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
-        public readonly ?CarbonImmutable $updatedAt = null,
+        public readonly ?string $failureReason = null,
         public readonly ?Environment $environment = null,
-        public readonly ?EnvironmentInstance $instance = null,
+        public readonly ?Deployment $deployment = null,
         public readonly ?User $initiator = null,
     ) {
         //
@@ -71,20 +70,32 @@ class Command extends Data
             'startedAt' => $attributes['started_at'] ?? null,
             'finishedAt' => $attributes['finished_at'] ?? null,
             'createdAt' => $attributes['created_at'] ?? null,
-            'updatedAt' => $attributes['updated_at'] ?? null,
+            'failureReason' => $attributes['failure_reason'] ?? null,
         ];
 
-        $included = collect($response['included'] ?? []);
+        $included = $response['included'] ?? [];
+        $relationships = $data['relationships'] ?? [];
 
-        $environment = $included->firstWhere('type', 'environments');
-        $instance = $included->firstWhere('type', 'instances');
-        $initiator = $included->firstWhere('type', 'users');
+        $environment = self::resolveIncluded($included, $relationships['environment'] ?? null, 'environments');
+        $deployment = self::resolveIncluded($included, $relationships['deployment'] ?? null, 'deployments');
+        $initiator = self::resolveIncluded($included, $relationships['initiator'] ?? null, 'users');
 
         $transformed['environment'] = $environment ? Environment::createFromResponse(['data' => $environment, 'included' => $included]) : null;
-        $transformed['instance'] = $instance ? EnvironmentInstance::createFromResponse(['data' => $instance, 'included' => $included]) : null;
+        $transformed['deployment'] = $deployment ? Deployment::createFromResponse(['data' => $deployment, 'included' => $included]) : null;
         $transformed['initiator'] = $initiator ? User::createFromResponse(['data' => $initiator, 'included' => $included]) : null;
 
         return self::from($transformed);
+    }
+
+    protected static function resolveIncluded(array $included, ?array $relationship, string $type): ?array
+    {
+        if (! isset($relationship['data']['id'])) {
+            return null;
+        }
+
+        $id = $relationship['data']['id'];
+
+        return collect($included)->first(fn ($item) => $item['type'] === $type && $item['id'] === $id);
     }
 
     protected function overrideDescriptionItem(string $key, mixed $value): ?array
@@ -101,9 +112,9 @@ class Command extends Data
             ];
         }
 
-        if ($key === 'instance' && $value) {
+        if ($key === 'deployment' && $value) {
             return [
-                'Instance' => $value['name'] ?? null,
+                'Deployment' => $value['id'] ?? null,
             ];
         }
 
