@@ -9,10 +9,12 @@ use App\Client\Resources\DatabaseClusters\DeleteDatabaseClusterRequest;
 use App\Client\Resources\DatabaseClusters\GetDatabaseClusterMetricsRequest;
 use App\Client\Resources\DatabaseClusters\GetDatabaseClusterRequest;
 use App\Client\Resources\DatabaseClusters\ListDatabaseClustersRequest;
+use App\Client\Resources\DatabaseClusters\ListDatabasePresetsRequest;
 use App\Client\Resources\DatabaseClusters\ListDatabaseTypesRequest;
 use App\Client\Resources\DatabaseClusters\UpdateDatabaseClusterRequest;
 use App\Dto\DatabaseCluster;
 use App\Dto\DatabaseClusterMetrics;
+use App\Dto\DatabasePreset;
 use Saloon\PaginationPlugin\Paginator;
 
 class DatabaseClustersResource extends Resource
@@ -64,6 +66,17 @@ class DatabaseClustersResource extends Resource
     public function types(): array
     {
         $request = new ListDatabaseTypesRequest;
+        $response = $this->send($request);
+
+        return $request->createDtoFromResponse($response);
+    }
+
+    /**
+     * @return list<DatabasePreset>
+     */
+    public function presets(string $type, string $region): array
+    {
+        $request = new ListDatabasePresetsRequest($type, $region);
         $response = $this->send($request);
 
         return $request->createDtoFromResponse($response);

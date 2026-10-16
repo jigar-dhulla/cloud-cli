@@ -417,6 +417,23 @@ function versionlessDatabaseTypesResponse(): array
     ];
 }
 
+function databasePresetsResponse(string $type): array
+{
+    $presets = match ($type) {
+        'laravel_mysql' => [
+            ['key' => 'dev', 'label' => 'Dev', 'config' => ['size' => 'mysql-flex-512mb', 'storage' => 5, 'retention_days' => 1, 'uses_scheduled_snapshots' => false, 'is_public' => false]],
+            ['key' => 'prod', 'label' => 'Prod', 'config' => ['size' => 'mysql-flex-2gb', 'storage' => 20, 'retention_days' => 7, 'uses_scheduled_snapshots' => false, 'is_public' => false]],
+        ],
+        'neon_serverless_postgres' => [
+            ['key' => 'dev', 'label' => 'Dev', 'config' => ['cu_min' => 0.25, 'cu_max' => 0.25, 'suspend_seconds' => 300, 'retention_days' => 0]],
+            ['key' => 'prod', 'label' => 'Prod', 'config' => ['cu_min' => 0.25, 'cu_max' => 1, 'suspend_seconds' => 0, 'retention_days' => 7]],
+        ],
+        default => [],
+    };
+
+    return ['data' => $presets];
+}
+
 function cacheResponse(array $overrides = []): array
 {
     return [

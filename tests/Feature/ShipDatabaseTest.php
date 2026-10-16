@@ -4,6 +4,7 @@ use App\Client\Connector;
 use App\Client\Resources\DatabaseClusters\CreateDatabaseClusterRequest;
 use App\Client\Resources\DatabaseClusters\GetDatabaseClusterRequest;
 use App\Client\Resources\DatabaseClusters\ListDatabaseClustersRequest;
+use App\Client\Resources\DatabaseClusters\ListDatabasePresetsRequest;
 use App\Client\Resources\DatabaseClusters\ListDatabaseTypesRequest;
 use App\Client\Resources\Databases\CreateDatabaseRequest;
 use App\Commands\Ship;
@@ -56,6 +57,10 @@ function setupShipDatabaseMocks(): Closure
 
     MockClient::global([
         ListDatabaseTypesRequest::class => MockResponse::make(versionlessDatabaseTypesResponse(), 200),
+        ListDatabasePresetsRequest::class => fn (PendingRequest $request) => MockResponse::make(
+            databasePresetsResponse($request->query()->get('type')),
+            200,
+        ),
         ListDatabaseClustersRequest::class => MockResponse::make([
             'data' => [],
             'included' => [],
@@ -150,4 +155,41 @@ it('rejects a database type it has no presets for', function () {
 
     expect(fn () => (fn () => $this->provisionDatabaseOpinionated())->call($command))
         ->toThrow(RuntimeException::class, 'Invalid --database value "aws_rds_postgres"');
+});
+
+it('provisions the preset chosen by key from the API', function () {
+    $sentBody = setupShipDatabaseMocks();
+
+    $command = shipCommandProvisioningDatabase(['--database' => 'mysql', '--database-preset' => 'PROD']);
+
+    (fn () => $this->provisionDatabaseOpinionated())->call($command);
+
+    expect($sentBody()['config'])->toBe(databasePresetsResponse('laravel_mysql')['data'][1]['config']);
+});
+
+it('rejects a preset the API does not offer', function () {
+    setupShipDatabaseMocks();
+
+    $command = shipCommandProvisioningDatabase(['--database' => 'mysql', '--database-preset' => 'scale']);
+
+    expect(fn () => (fn () => $this->provisionDatabaseOpinionated())->call($command))
+        ->toThrow(RuntimeException::class, 'Invalid --database-preset value "scale" for database type "laravel_mysql" in region "us-east-1". Must be one of: dev, prod');
+
+    MockClient::global()->assertNotSent(CreateDatabaseClusterRequest::class);
+});
+
+it('falls back to the first preset when dev is not offered and none was asked for', function () {
+    $sentBody = setupShipDatabaseMocks();
+
+    MockClient::global()->addResponses([
+        ListDatabasePresetsRequest::class => MockResponse::make(['data' => [
+            ['key' => 'pro', 'label' => 'Pro', 'config' => ['cu_min' => 1, 'cu_max' => 1, 'suspend_seconds' => 0, 'retention_days' => 7]],
+        ]], 200),
+    ]);
+
+    $command = shipCommandProvisioningDatabase([]);
+
+    (fn () => $this->provisionDatabaseOpinionated())->call($command);
+
+    expect($sentBody()['config'])->toBe(['cu_min' => 1, 'cu_max' => 1, 'suspend_seconds' => 0, 'retention_days' => 7]);
 });
