@@ -10,6 +10,7 @@ use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\number;
+use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
 
@@ -66,16 +67,16 @@ class BackgroundProcessUpdate extends BaseCommand
 
     protected function updateProcess(BackgroundProcess $process): BackgroundProcess
     {
+        $data = new UpdateBackgroundProcessRequestData(
+            backgroundProcessId: $process->id,
+            type: $this->typeChanged($process) ? $this->targetType($process) : null,
+            processes: $this->form()->integer('processes'),
+            command: $this->form()->get('command'),
+            config: $this->buildConfig($process),
+        );
+
         spin(
-            fn () => $this->client->backgroundProcesses()->update(
-                new UpdateBackgroundProcessRequestData(
-                    backgroundProcessId: $process->id,
-                    type: null,
-                    processes: $this->form()->integer('processes'),
-                    command: $this->form()->get('command'),
-                    config: $this->buildConfig($process),
-                ),
-            ),
+            fn () => $this->client->backgroundProcesses()->update($data),
             'Updating background process...',
         );
 
@@ -87,16 +88,42 @@ class BackgroundProcessUpdate extends BaseCommand
      */
     protected function buildConfig(BackgroundProcess $process): ?array
     {
-        if ($process->type !== 'worker') {
+        if ($this->targetType($process) !== 'worker') {
             return null;
         }
 
-        return collect($this->form()->filled())
+        $config = collect($this->form()->filled())
             ->filter(fn ($field) => str_starts_with($field->key, 'config.'))
             ->mapWithKeys(fn ($field) => [
                 str_replace('config.', '', $field->key) => $field->value(),
             ])
             ->toArray();
+
+        if (! $this->typeChanged($process)) {
+            return $config ?: null;
+        }
+
+        // The API replaces the whole config and builds the worker command from it, so a switch
+        // to a worker must carry every setting and fails without any.
+        $config = array_merge($process->config ?? [], $config);
+
+        if (empty($config)) {
+            $this->outputErrorOrThrow('Switching to a worker needs its queue settings. Provide them with options such as --connection and --queue.');
+
+            throw new CommandExitException(self::FAILURE);
+        }
+
+        return $config;
+    }
+
+    protected function targetType(BackgroundProcess $process): string
+    {
+        return $this->form()->get('type') ?? $process->type;
+    }
+
+    protected function typeChanged(BackgroundProcess $process): bool
+    {
+        return $this->targetType($process) !== $process->type;
     }
 
     protected function defineFields(BackgroundProcess $process): void
@@ -114,7 +141,27 @@ class BackgroundProcessUpdate extends BaseCommand
             ),
         )->setPreviousValue((string) $process->processes);
 
-        if ($process->type === 'custom') {
+        $this->form()->define(
+            'type',
+            fn ($resolver) => $resolver->fromInput(
+                fn ($value) => select(
+                    label: 'Type',
+                    options: [
+                        'worker' => 'Worker',
+                        'custom' => 'Custom',
+                    ],
+                    default: $value ?? $process->type,
+                    required: true,
+                ),
+            ),
+        )->setPreviousValue($process->type);
+
+        $this->defineTypeFields($process, $this->targetType($process));
+    }
+
+    protected function defineTypeFields(BackgroundProcess $process, string $type): void
+    {
+        if ($type === 'custom') {
             $this->form()->define(
                 'command',
                 fn ($resolver) => $resolver->fromInput(
@@ -125,7 +172,7 @@ class BackgroundProcessUpdate extends BaseCommand
                     ),
                 ),
             )->setPreviousValue($process->command);
-        } elseif ($process->type === 'worker') {
+        } elseif ($type === 'worker') {
             $this->defineWorkerConfigFields($process);
         }
     }
@@ -235,6 +282,24 @@ class BackgroundProcessUpdate extends BaseCommand
         )->setPreviousValue($process->force);
     }
 
+    /**
+     * @param  array<int, string>  $alreadyPrompted
+     */
+    protected function promptForNewTypeFields(BackgroundProcess $process, array $alreadyPrompted): void
+    {
+        $type = $this->targetType($process);
+
+        $this->defineTypeFields($process, $type);
+
+        $keys = $type === 'custom'
+            ? ['command']
+            : ['config.connection', 'config.queue', 'config.tries', 'config.backoff', 'config.sleep', 'config.rest', 'config.timeout', 'config.force'];
+
+        foreach (array_diff($keys, $alreadyPrompted) as $key) {
+            $this->form()->prompt($key);
+        }
+    }
+
     protected function collectDataAndUpdate(BackgroundProcess $process): BackgroundProcess
     {
         $options = collect($this->form()->defined())->mapWithKeys(fn ($field, $key) => [
@@ -260,6 +325,10 @@ class BackgroundProcessUpdate extends BaseCommand
 
         foreach ($selection as $optionName) {
             $this->form()->prompt($optionName);
+        }
+
+        if ($this->typeChanged($process)) {
+            $this->promptForNewTypeFields($process, $selection);
         }
 
         return $this->updateProcess($process);
