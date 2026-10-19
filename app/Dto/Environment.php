@@ -41,8 +41,6 @@ class Environment extends Data
         public readonly array $networkSettings = [],
         #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
         public readonly ?CarbonImmutable $createdAt = null,
-        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
-        public readonly ?CarbonImmutable $updatedAt = null,
         public readonly ?Application $application = null,
         public readonly ?string $branchId = null,
         public readonly array $deploymentIds = [],
@@ -98,7 +96,6 @@ class Environment extends Data
             'environmentVariables' => $attributes['environment_variables'] ?? [],
             'networkSettings' => $attributes['network_settings'] ?? [],
             'createdAt' => $attributes['created_at'] ?? null,
-            'updatedAt' => $attributes['updated_at'] ?? null,
             'framework' => $attributes['framework'] ?? null,
             'language' => $attributes['language'] ?? null,
             'serving' => $attributes['serving'] ?? null,

@@ -33,8 +33,6 @@ class EnvironmentInstance extends Data
         public readonly ?string $retiredAt = null,
         #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
         public readonly ?CarbonImmutable $createdAt = null,
-        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
-        public readonly ?CarbonImmutable $updatedAt = null,
         public readonly ?Environment $environment = null,
         public readonly array $backgroundProcessIds = [],
     ) {
@@ -71,7 +69,6 @@ class EnvironmentInstance extends Data
             'retireAt' => $attributes['retire_at'] ?? null,
             'retiredAt' => $attributes['retired_at'] ?? null,
             'createdAt' => $attributes['created_at'] ?? null,
-            'updatedAt' => $attributes['updated_at'] ?? null,
             'environment' => ($relationships['environment']['data'] ?? null) ? Environment::createFromResponse(['data' => collect($included)->firstWhere('type', 'environments')]) : null,
         ];
 
