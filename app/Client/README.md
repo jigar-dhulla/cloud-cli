@@ -151,6 +151,9 @@ $data = $response->json();
 #### Dedicated Clusters
 - `ListDedicatedClustersRequest` - List all dedicated clusters
 
+#### Edge Networks
+- `ListEdgeNetworksRequest` - List edge networks, including the shared one
+
 ## Examples
 
 ### List Applications
