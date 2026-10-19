@@ -2,6 +2,7 @@
 
 namespace App\Client\Resources\Secrets;
 
+use App\Client\Resources\Concerns\AcceptsFilters;
 use App\Dto\Secret;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
@@ -10,6 +11,8 @@ use Saloon\PaginationPlugin\Contracts\Paginatable;
 
 class ListSecretsRequest extends Request implements Paginatable
 {
+    use AcceptsFilters;
+
     protected Method $method = Method::GET;
 
     public function resolveEndpoint(): string

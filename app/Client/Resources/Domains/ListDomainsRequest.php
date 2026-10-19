@@ -2,6 +2,7 @@
 
 namespace App\Client\Resources\Domains;
 
+use App\Client\Resources\Concerns\AcceptsFilters;
 use App\Client\Resources\Concerns\AcceptsInclude;
 use App\Dto\Domain;
 use Saloon\Enums\Method;
@@ -11,6 +12,7 @@ use Saloon\PaginationPlugin\Contracts\Paginatable;
 
 class ListDomainsRequest extends Request implements Paginatable
 {
+    use AcceptsFilters;
     use AcceptsInclude;
 
     protected Method $method = Method::GET;

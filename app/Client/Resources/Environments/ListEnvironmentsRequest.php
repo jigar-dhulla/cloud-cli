@@ -2,6 +2,7 @@
 
 namespace App\Client\Resources\Environments;
 
+use App\Client\Resources\Concerns\AcceptsFilters;
 use App\Client\Resources\Concerns\AcceptsInclude;
 use App\Dto\Environment;
 use Saloon\Enums\Method;
@@ -11,6 +12,7 @@ use Saloon\PaginationPlugin\Contracts\Paginatable;
 
 class ListEnvironmentsRequest extends Request implements Paginatable
 {
+    use AcceptsFilters;
     use AcceptsInclude;
 
     protected Method $method = Method::GET;

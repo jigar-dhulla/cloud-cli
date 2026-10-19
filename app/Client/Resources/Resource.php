@@ -11,6 +11,13 @@ abstract class Resource
 {
     protected array $includes = [];
 
+    /**
+     * @var array<string, string|null>
+     */
+    protected array $filters = [];
+
+    protected ?string $sort = null;
+
     public function __construct(
         protected Connector $connector,
     ) {
@@ -24,9 +31,27 @@ abstract class Resource
         return $this;
     }
 
+    /**
+     * @param  array<string, string|null>  $filters  Keyed by the API's filter name; null values are left out.
+     */
+    public function filter(array $filters): static
+    {
+        $this->filters = [...$this->filters, ...$filters];
+
+        return $this;
+    }
+
+    public function sort(?string $sort): static
+    {
+        $this->sort = $sort;
+
+        return $this;
+    }
+
     protected function send(Request $request): Response
     {
         $this->withIncludes($request);
+        $this->withFilters($request);
 
         return $this->connector->send($request);
     }
@@ -34,8 +59,18 @@ abstract class Resource
     protected function paginate(Request $request): Paginator
     {
         $this->withIncludes($request);
+        $this->withFilters($request);
 
         return $this->connector->paginate($request);
+    }
+
+    protected function withFilters(Request $request): Request
+    {
+        if (method_exists($request, 'filter')) {
+            $request->filter($this->filters)->sort($this->sort);
+        }
+
+        return $request;
     }
 
     protected function getIncludesString(): ?string
