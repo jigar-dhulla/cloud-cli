@@ -420,6 +420,7 @@ function versionlessDatabaseTypesResponse(): array
                     ['name' => 'retention_days', 'type' => 'integer', 'required' => true, 'example' => '1'],
                     ['name' => 'uses_scheduled_snapshots', 'type' => 'boolean', 'required' => true, 'example' => 'false'],
                     ['name' => 'is_public', 'type' => 'boolean', 'required' => true, 'example' => 'false'],
+                    ['name' => 'maintenance_window', 'type' => 'string', 'required' => false, 'nullable' => true, 'example' => 'sun:06:00-sun:06:30'],
                 ],
             ],
             [

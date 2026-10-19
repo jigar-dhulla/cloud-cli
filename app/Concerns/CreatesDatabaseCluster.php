@@ -18,6 +18,24 @@ use function Laravel\Prompts\text;
 
 trait CreatesDatabaseCluster
 {
+    use CoercesDatabaseClusterConfig;
+
+    protected const DATABASE_CLUSTER_CONFIG_FIELDS = [
+        'size',
+        'storage',
+        'storage_autoscale_max_gb',
+        'is_public',
+        'uses_scheduled_snapshots',
+        'retention_days',
+        'maintenance_window',
+        'suspend_seconds',
+        'cu_min',
+        'cu_max',
+        'uses_pitr',
+        'deployment_option',
+        'read_replicas',
+    ];
+
     protected ?string $databaseClusterPreset = null;
 
     protected function createDatabaseCluster(array $defaults = []): DatabaseCluster
@@ -110,7 +128,10 @@ trait CreatesDatabaseCluster
             ),
         );
 
-        $config = $this->databaseClusterConfigFromPreset($selectedType) ?? $this->promptForDatabaseClusterConfig($selectedType);
+        $config = [
+            ...$this->databaseClusterConfigFromPreset($selectedType) ?? $this->promptForDatabaseClusterConfig($selectedType),
+            ...$this->databaseClusterConfigFromOptions($selectedType),
+        ];
         $clusterId = $this->hasOption('cluster') ? $this->option('cluster') : null;
         $createDefaultDatabase = $this->createDefaultDatabaseOption();
 
@@ -165,6 +186,26 @@ trait CreatesDatabaseCluster
             return null;
         }
 
+        $requested = $this->hasOption('preset') ? $this->option('preset') : null;
+
+        if ($requested !== null) {
+            $preset = $presets->first(fn (DatabasePreset $preset) => strcasecmp($preset->key, $requested) === 0);
+
+            if ($preset === null) {
+                throw new RuntimeException(sprintf(
+                    'Invalid --preset value "%s" for database type "%s" in region "%s". Must be one of: %s (case-insensitive)',
+                    $requested,
+                    $type->type,
+                    $region,
+                    $presets->keys()->implode(', '),
+                ));
+            }
+
+            $this->databaseClusterPreset = $preset->key;
+
+            return $preset->config;
+        }
+
         // The cached choice may not exist for a region picked on a later attempt.
         if ($this->databaseClusterPreset !== null && $presets->has($this->databaseClusterPreset)) {
             return $presets->get($this->databaseClusterPreset)->config;
@@ -185,6 +226,32 @@ trait CreatesDatabaseCluster
         }
 
         return $presets->get($this->databaseClusterPreset)->config;
+    }
+
+    /**
+     * Config fields passed as options, which win over the preset's values.
+     */
+    protected function databaseClusterConfigFromOptions(DatabaseType $type): array
+    {
+        $fields = collect($type->configSchema)->map(fn ($field) => is_array($field) ? $field['name'] : $field->name);
+        $config = [];
+
+        foreach (self::DATABASE_CLUSTER_CONFIG_FIELDS as $name) {
+            $option = str_replace('_', '-', $name);
+            $value = $this->hasOption($option) ? $this->option($option) : null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            if (! $fields->contains($name)) {
+                throw new RuntimeException(sprintf('The --%s option does not apply to %s clusters.', $option, $type->label));
+            }
+
+            $config[$name] = $this->coerceConfigValue($name, $value, $type);
+        }
+
+        return $config;
     }
 
     protected function describeDatabasePreset(DatabaseType $type, DatabasePreset $preset): string
@@ -216,6 +283,7 @@ trait CreatesDatabaseCluster
             $enum = $schema['enum'] ?? [];
             $example = $schema['example'] ?? null;
             $key = 'config.'.$name;
+            $optionName = str_replace('_', '-', $name);
 
             $label = match ($name) {
                 'cu_min' => 'CU min',
@@ -235,6 +303,7 @@ trait CreatesDatabaseCluster
                             required: $required,
                         ),
                     ),
+                    $optionName,
                 );
             } elseif ($fieldType === 'boolean') {
                 $this->form()->prompt(
@@ -246,6 +315,7 @@ trait CreatesDatabaseCluster
                             hint: $description,
                         ),
                     ),
+                    $optionName,
                 );
             } elseif ($fieldType === 'integer') {
                 $this->form()->prompt(
@@ -260,6 +330,7 @@ trait CreatesDatabaseCluster
                             max: $max,
                         ),
                     ),
+                    $optionName,
                 );
             } else {
                 $this->form()->prompt(
@@ -272,6 +343,7 @@ trait CreatesDatabaseCluster
                             hint: $description,
                         ),
                     ),
+                    $optionName,
                 );
             }
         }
