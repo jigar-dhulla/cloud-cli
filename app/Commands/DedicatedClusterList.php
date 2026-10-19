@@ -38,7 +38,7 @@ class DedicatedClusterList extends BaseCommand
         answered('Organization', $this->client->meta()->organization()->name);
 
         $items = $this->fetchList(
-            fn () => $this->client->dedicatedClusters()->list(...$filters),
+            fn () => $this->client->dedicatedClusters()->filter($filters)->list(),
             'Fetching dedicated clusters...',
         );
 

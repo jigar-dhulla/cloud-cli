@@ -11,13 +11,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class CommandsResource extends Resource
 {
-    public function list(string $environmentId, ?string $status = null, ?string $command = null): Paginator
+    public function list(string $environmentId): Paginator
     {
-        $request = new ListCommandsRequest(
-            environmentId: $environmentId,
-            status: $status,
-            command: $command,
-        );
+        $request = new ListCommandsRequest($environmentId);
 
         return $this->paginate($request);
     }

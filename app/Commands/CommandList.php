@@ -39,7 +39,7 @@ class CommandList extends BaseCommand
 
         $environment = $this->resolvers()->environment()->from($this->argument('environment'));
         $commands = $this->fetchList(
-            fn () => $this->client->commands()->list($environment->id, ...$filters),
+            fn () => $this->client->commands()->filter($filters)->list($environment->id),
             'Fetching commands...',
         );
 

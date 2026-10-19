@@ -45,7 +45,7 @@ class EnvironmentList extends BaseCommand
         answered('Application', $application->name);
 
         $envItems = $this->fetchList(
-            fn () => $this->client->environments()->list($application->id, ...$filters),
+            fn () => $this->client->environments()->filter($filters)->list($application->id),
             'Fetching environments...',
         );
 

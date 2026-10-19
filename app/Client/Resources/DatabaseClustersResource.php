@@ -17,13 +17,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class DatabaseClustersResource extends Resource
 {
-    public function list(?string $type = null, ?string $region = null, ?string $status = null): Paginator
+    public function list(): Paginator
     {
-        $request = new ListDatabaseClustersRequest(
-            type: $type,
-            region: $region,
-            status: $status,
-        );
+        $request = new ListDatabaseClustersRequest;
 
         return $this->paginate($request);
     }

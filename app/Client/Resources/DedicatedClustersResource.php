@@ -7,13 +7,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class DedicatedClustersResource extends Resource
 {
-    public function list(?string $region = null, ?string $type = null, ?string $status = null): Paginator
+    public function list(): Paginator
     {
-        $request = new ListDedicatedClustersRequest(
-            region: $region,
-            type: $type,
-            status: $status,
-        );
+        $request = new ListDedicatedClustersRequest;
 
         return $this->paginate($request);
     }

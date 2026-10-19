@@ -39,7 +39,7 @@ class CacheList extends BaseCommand
         answered('Organization', $this->client->meta()->organization()->name);
 
         $items = $this->fetchList(
-            fn () => $this->client->caches()->list(...$filters),
+            fn () => $this->client->caches()->filter($filters)->list(),
             'Fetching caches...',
         );
 

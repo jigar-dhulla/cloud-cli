@@ -32,8 +32,8 @@ class DeploymentList extends BaseCommand
 
         $filters = [
             'status' => $this->filterOption('status', DeploymentStatus::class),
-            'branchName' => $this->filterOption('branch'),
-            'commitHash' => $this->filterOption('commit'),
+            'branch_name' => $this->filterOption('branch'),
+            'commit_hash' => $this->filterOption('commit'),
         ];
 
         intro('Deployments');
@@ -41,7 +41,7 @@ class DeploymentList extends BaseCommand
         $environment = $this->resolvers()->environment()->from($this->argument('environment'));
 
         $items = $this->fetchList(
-            fn () => $this->client->deployments()->list($environment->id, ...$filters),
+            fn () => $this->client->deployments()->filter($filters)->list($environment->id),
             'Fetching deployments...',
         );
 

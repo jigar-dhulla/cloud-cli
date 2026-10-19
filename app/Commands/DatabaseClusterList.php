@@ -39,7 +39,7 @@ class DatabaseClusterList extends BaseCommand
         intro('Database Clusters');
 
         $items = $this->fetchList(
-            fn () => $this->client->databaseClusters()->include('databases')->list(...$filters),
+            fn () => $this->client->databaseClusters()->include('databases')->filter($filters)->list(),
             'Fetching databases...',
         );
 

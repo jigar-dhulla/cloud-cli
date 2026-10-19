@@ -23,15 +23,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class InstancesResource extends Resource
 {
-    public function list(string $environmentId, ?string $name = null, ?string $type = null, ?string $size = null, ?string $scalingType = null): Paginator
+    public function list(string $environmentId): Paginator
     {
-        $request = new ListInstancesRequest(
-            environmentId: $environmentId,
-            name: $name,
-            type: $type,
-            size: $size,
-            scalingType: $scalingType,
-        );
+        $request = new ListInstancesRequest($environmentId);
 
         return $this->paginate($request);
     }

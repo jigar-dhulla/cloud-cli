@@ -31,14 +31,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class EnvironmentsResource extends Resource
 {
-    public function list(string $applicationId, ?string $name = null, ?string $status = null, ?string $slug = null): Paginator
+    public function list(string $applicationId): Paginator
     {
-        $request = new ListEnvironmentsRequest(
-            applicationId: $applicationId,
-            name: $name,
-            status: $status,
-            slug: $slug,
-        );
+        $request = new ListEnvironmentsRequest($applicationId);
 
         return $this->paginate($request);
     }

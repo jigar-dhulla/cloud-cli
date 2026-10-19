@@ -16,15 +16,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class DomainsResource extends Resource
 {
-    public function list(string $environmentId, ?string $name = null, ?string $hostnameStatus = null, ?string $sslStatus = null, ?string $originStatus = null): Paginator
+    public function list(string $environmentId): Paginator
     {
-        $request = new ListDomainsRequest(
-            environmentId: $environmentId,
-            name: $name,
-            hostnameStatus: $hostnameStatus,
-            sslStatus: $sslStatus,
-            originStatus: $originStatus,
-        );
+        $request = new ListDomainsRequest($environmentId);
 
         return $this->paginate($request);
     }

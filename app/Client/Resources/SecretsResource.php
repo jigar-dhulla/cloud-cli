@@ -15,14 +15,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class SecretsResource extends Resource
 {
-    public function list(?string $key = null, ?string $sort = null): Paginator
+    public function list(): Paginator
     {
-        $request = new ListSecretsRequest(
-            key: $key,
-            sort: $sort,
-        );
-
-        return $this->paginate($request);
+        return $this->paginate(new ListSecretsRequest);
     }
 
     public function publicKey(): SecretPublicKey

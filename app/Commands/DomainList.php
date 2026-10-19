@@ -32,9 +32,9 @@ class DomainList extends BaseCommand
 
         $filters = [
             'name' => $this->filterOption('name'),
-            'hostnameStatus' => $this->filterOption('hostname-status', ['pending', 'verified', 'failed', 'disabled']),
-            'sslStatus' => $this->filterOption('ssl-status', ['pending', 'verified', 'failed', 'disabled']),
-            'originStatus' => $this->filterOption('origin-status', ['pending', 'verified', 'failed', 'disabled']),
+            'hostname_status' => $this->filterOption('hostname-status', ['pending', 'verified', 'failed', 'disabled']),
+            'ssl_status' => $this->filterOption('ssl-status', ['pending', 'verified', 'failed', 'disabled']),
+            'origin_status' => $this->filterOption('origin-status', ['pending', 'verified', 'failed', 'disabled']),
         ];
 
         intro('Domains');
@@ -42,7 +42,7 @@ class DomainList extends BaseCommand
         $environment = $this->resolvers()->environment()->from($this->argument('environment'));
 
         $items = $this->fetchList(
-            fn () => $this->client->domains()->list($environment->id, ...$filters),
+            fn () => $this->client->domains()->filter($filters)->list($environment->id),
             'Fetching domains...',
         );
 

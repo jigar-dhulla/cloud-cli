@@ -16,13 +16,9 @@ use Saloon\PaginationPlugin\Paginator;
 
 class WebSocketClustersResource extends Resource
 {
-    public function list(?string $type = null, ?string $region = null, ?string $status = null): Paginator
+    public function list(): Paginator
     {
-        $request = new ListWebSocketClustersRequest(
-            type: $type,
-            region: $region,
-            status: $status,
-        );
+        $request = new ListWebSocketClustersRequest;
 
         return $this->paginate($request);
     }

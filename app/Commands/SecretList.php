@@ -26,17 +26,15 @@ class SecretList extends BaseCommand
     {
         $this->ensureClient();
 
-        $filters = [
-            'key' => $this->filterOption('key'),
-            'sort' => $this->filterOption('sort', ['key', '-key', 'created_at', '-created_at']),
-        ];
+        $key = $this->filterOption('key');
+        $sort = $this->filterOption('sort', ['key', '-key', 'created_at', '-created_at']);
 
         intro('Secrets');
 
         answered('Organization', $this->client->meta()->organization()->name);
 
         $items = $this->fetchList(
-            fn () => $this->client->secrets()->list(...$filters),
+            fn () => $this->client->secrets()->filter(['key' => $key])->sort($sort)->list(),
             'Fetching secrets...',
         );
 

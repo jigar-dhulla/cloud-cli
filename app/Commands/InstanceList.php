@@ -5,6 +5,7 @@ namespace App\Commands;
 use App\Concerns\FiltersLists;
 use App\Dto\EnvironmentInstance;
 use App\Enums\InstanceScalingType;
+use App\Enums\InstanceType;
 use Laravel\Prompts\Key;
 
 use function Laravel\Prompts\intro;
@@ -33,9 +34,9 @@ class InstanceList extends BaseCommand
 
         $filters = [
             'name' => $this->filterOption('name'),
-            'type' => $this->filterOption('type', ['app', 'service', 'queue', 'managed_queue']),
+            'type' => $this->filterOption('type', InstanceType::class),
             'size' => $this->filterOption('size'),
-            'scalingType' => $this->filterOption('scaling-type', InstanceScalingType::class),
+            'scaling_type' => $this->filterOption('scaling-type', InstanceScalingType::class),
         ];
 
         intro('Instances');
@@ -43,7 +44,7 @@ class InstanceList extends BaseCommand
         $environment = $this->resolvers()->environment()->from($this->argument('environment'));
 
         $items = $this->fetchList(
-            fn () => $this->client->instances()->list($environment->id, ...$filters),
+            fn () => $this->client->instances()->filter($filters)->list($environment->id),
             'Fetching instances...',
         );
 

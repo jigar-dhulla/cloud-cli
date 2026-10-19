@@ -43,7 +43,7 @@ class WebsocketClusterList extends BaseCommand
         answered('Organization', $this->client->meta()->organization()->name);
 
         $items = $this->fetchList(
-            fn () => $this->client->websocketClusters()->list(...$filters),
+            fn () => $this->client->websocketClusters()->filter($filters)->list(),
             'Fetching WebSocket clusters...',
         );
 

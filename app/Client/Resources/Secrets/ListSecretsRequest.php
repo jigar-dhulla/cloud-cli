@@ -2,6 +2,7 @@
 
 namespace App\Client\Resources\Secrets;
 
+use App\Client\Resources\Concerns\AcceptsFilters;
 use App\Dto\Secret;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
@@ -10,26 +11,13 @@ use Saloon\PaginationPlugin\Contracts\Paginatable;
 
 class ListSecretsRequest extends Request implements Paginatable
 {
-    protected Method $method = Method::GET;
+    use AcceptsFilters;
 
-    public function __construct(
-        protected ?string $key = null,
-        protected ?string $sort = null,
-    ) {
-        //
-    }
+    protected Method $method = Method::GET;
 
     public function resolveEndpoint(): string
     {
         return '/secrets';
-    }
-
-    protected function defaultQuery(): array
-    {
-        return array_filter([
-            'filter[key]' => $this->key,
-            'sort' => $this->sort,
-        ]);
     }
 
     public function createDtoFromResponse(Response $response): array
