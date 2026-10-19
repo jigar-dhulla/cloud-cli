@@ -450,6 +450,9 @@ function databasePresetsResponse(string $type): array
             ['key' => 'dev', 'label' => 'Dev', 'config' => ['cu_min' => 0.25, 'cu_max' => 0.25, 'suspend_seconds' => 300, 'retention_days' => 0]],
             ['key' => 'prod', 'label' => 'Prod', 'config' => ['cu_min' => 0.25, 'cu_max' => 1, 'suspend_seconds' => 0, 'retention_days' => 7]],
         ],
+        'aws_rds_postgres' => [
+            ['key' => 'dev', 'label' => 'Dev', 'config' => ['size' => 'db.t4g.micro', 'storage' => 20, 'multi_az' => false]],
+        ],
         default => [],
     };
 

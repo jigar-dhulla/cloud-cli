@@ -31,7 +31,7 @@ trait CreatesDatabaseCluster
                     required: true,
                     validate: fn ($v) => match (true) {
                         ! preg_match('/^[a-z0-9_-]+$/', $v) => 'Must contain only lowercase letters, numbers, hyphens and underscores',
-                        strlen($v) < 3 => 'Must be at least 3 characters',
+                        strlen($v) < 2 => 'Must be at least 2 characters',
                         strlen($v) > 40 => 'Must be less than 40 characters',
                         default => null,
                     },
@@ -44,7 +44,7 @@ trait CreatesDatabaseCluster
             'Fetching database types...',
         );
 
-        $types = collect($types)->filter(fn (DatabaseType $type) => DatabaseClusterPreset::tryFrom($type->type) !== null)->values();
+        $types = collect($types);
 
         $this->form()->prompt(
             'type',
@@ -111,6 +111,8 @@ trait CreatesDatabaseCluster
         );
 
         $config = $this->databaseClusterConfigFromPreset($selectedType) ?? $this->promptForDatabaseClusterConfig($selectedType);
+        $clusterId = $this->hasOption('cluster') ? $this->option('cluster') : null;
+        $createDefaultDatabase = $this->createDefaultDatabaseOption();
 
         return spin(
             fn () => $this->client->databaseClusters()->create(
@@ -121,10 +123,29 @@ trait CreatesDatabaseCluster
                     config: $config,
                     // Numeric keys come back from the prompt as integers.
                     version: (string) $this->form()->get('version'),
+                    clusterId: $clusterId,
+                    createDefaultDatabase: $createDefaultDatabase,
                 ),
             ),
             'Creating database cluster...',
         );
+    }
+
+    protected function createDefaultDatabaseOption(): ?bool
+    {
+        $value = $this->hasOption('create-default-database') ? $this->option('create-default-database') : null;
+
+        if ($value === null) {
+            return null;
+        }
+
+        $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if ($parsed === null) {
+            throw new RuntimeException('Invalid --create-default-database value "'.$value.'". Must be true or false.');
+        }
+
+        return $parsed;
     }
 
     protected function databaseClusterConfigFromPreset(DatabaseType $type): ?array
@@ -155,7 +176,7 @@ trait CreatesDatabaseCluster
             default: $presets->keys()->first() ?? 'custom',
             required: true,
             info: fn ($key) => $presets->has($key)
-                ? DatabaseClusterPreset::from($type->type)->description()($presets->get($key)->config)
+                ? $this->describeDatabasePreset($type, $presets->get($key))
                 : 'Custom configuration',
         );
 
@@ -164,6 +185,20 @@ trait CreatesDatabaseCluster
         }
 
         return $presets->get($this->databaseClusterPreset)->config;
+    }
+
+    protected function describeDatabasePreset(DatabaseType $type, DatabasePreset $preset): string
+    {
+        // Only some types have a hand-written summary; the rest (such as RDS) get their config listed as-is.
+        if ($clusterPreset = DatabaseClusterPreset::tryFrom($type->type)) {
+            return $clusterPreset->description()($preset->config);
+        }
+
+        return collect($preset->config)
+            ->filter(fn ($value) => is_scalar($value))
+            ->map(fn ($value, $key) => str_replace('_', ' ', $key).': '.var_export($value, true))
+            ->map(fn ($line) => str_replace("'", '', $line))
+            ->implode(' · ');
     }
 
     protected function promptForDatabaseClusterConfig(DatabaseType $type): array

@@ -5,7 +5,11 @@ use App\Client\Resources\DatabaseClusters\ListDatabasePresetsRequest;
 use App\Client\Resources\DatabaseClusters\ListDatabaseTypesRequest;
 use App\Client\Resources\Meta\GetOrganizationRequest;
 use App\Client\Resources\Meta\ListRegionsRequest;
+use App\Commands\DatabaseClusterCreate;
 use App\ConfigRepository;
+use App\Dto\DatabaseCluster;
+use App\Dto\DatabasePreset;
+use App\Dto\DatabaseType;
 use App\Enums\DatabaseClusterPreset;
 use Illuminate\Support\Sleep;
 use Saloon\Http\Faking\MockClient;
@@ -97,6 +101,63 @@ it('sends the dotted version for MySQL', function () {
         ->and($sentBody()['version'])->toBe('8.4');
 });
 
+it('accepts a two character name', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'db',
+        '--type' => 'neon_serverless_postgres',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['name'])->toBe('db');
+});
+
+it('sends the dedicated cluster and default database options', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--cluster' => 'cluster-abc',
+        '--create-default-database' => 'false',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['cluster_id'])->toBe('cluster-abc')
+        ->and($sentBody()['create_default_database'])->toBeFalse();
+});
+
+it('leaves the dedicated cluster and default database out when not given', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody())->not->toHaveKey('cluster_id')
+        ->and($sentBody())->not->toHaveKey('create_default_database');
+});
+
+it('rejects an invalid default database value', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--create-default-database' => 'maybe',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    expect($sentBody())->toBeNull();
+});
+
 it('sends the config of the first preset the API offers for the type and region', function () {
     $sentBody = setupDatabaseClusterCreateMocks();
 
@@ -111,6 +172,20 @@ it('sends the config of the first preset the API offers for the type and region'
         && $request->query()->all() === ['type' => 'laravel_mysql', 'region' => 'us-east-1']);
 
     expect($sentBody()['config'])->toBe(databasePresetsResponse('laravel_mysql')['data'][0]['config']);
+});
+
+it('creates an RDS cluster from the presets the API offers', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'aws_rds_postgres',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['type'])->toBe('aws_rds_postgres')
+        ->and($sentBody()['config'])->toBe(databasePresetsResponse('aws_rds_postgres')['data'][0]['config']);
 });
 
 it('fails when the API offers no presets and the run is not interactive', function () {
@@ -134,4 +209,25 @@ it('summarises a MySQL preset from its API size', function () {
     $summary = DatabaseClusterPreset::LaravelMysql->description()(databasePresetsResponse('laravel_mysql')['data'][0]['config']);
 
     expect($summary)->toBe('Flex (512 MiB RAM) · 5GB storage · 1 day backups');
+});
+
+it('lists the config of a preset for a type without a hand-written summary', function () {
+    $type = DatabaseType::createFromResponse(['data' => versionlessDatabaseTypesResponse()['data'][1]]);
+    $preset = DatabasePreset::from(databasePresetsResponse('aws_rds_postgres')['data'][0]);
+
+    $summary = (fn () => $this->describeDatabasePreset($type, $preset))->call(new DatabaseClusterCreate);
+
+    expect($summary)->toBe('size: db.t4g.micro · storage: 20 · multi az: false');
+});
+
+it('reads point-in-time recovery details from the cluster response', function () {
+    $cluster = DatabaseCluster::createFromResponse(databaseClusterResponse([
+        'attributes' => [
+            'supports_pitr' => true,
+            'earliest_restore_time' => '2026-01-01T00:00:00.000000Z',
+        ],
+    ]));
+
+    expect($cluster->supportsPitr)->toBeTrue()
+        ->and($cluster->earliestRestoreTime?->toIso8601String())->toBe('2026-01-01T00:00:00+00:00');
 });
