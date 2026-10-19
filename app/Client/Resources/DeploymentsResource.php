@@ -43,4 +43,9 @@ class DeploymentsResource extends Resource
 
         return $request->createDtoFromResponse($response);
     }
+
+    public function withDefaultIncludes(): static
+    {
+        return $this->include('initiator');
+    }
 }

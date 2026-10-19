@@ -33,7 +33,7 @@ class Deployment extends Data
         public readonly bool $usesHibernation = false,
         public readonly ?int $hibernationWakeUpInterval = null,
         public readonly ?Environment $environment = null,
-        public readonly ?string $initiatorId = null,
+        public readonly ?User $initiator = null,
     ) {
         //
     }
@@ -131,7 +131,11 @@ class Deployment extends Data
         }
 
         if (isset($relationships['initiator']['data']['id'])) {
-            $transformed['initiatorId'] = $relationships['initiator']['data']['id'];
+            $initiator = collect($response['included'] ?? [])->first(
+                fn (array $item) => $item['type'] === 'users' && $item['id'] === $relationships['initiator']['data']['id'],
+            );
+
+            $transformed['initiator'] = $initiator ? User::createFromResponse(['data' => $initiator]) : null;
         }
 
         return self::from($transformed);

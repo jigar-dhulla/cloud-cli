@@ -41,7 +41,7 @@ class ApplicationList extends BaseCommand
         answered('Organization', $this->client->meta()->organization()->name);
 
         $applications = $this->fetchList(
-            fn () => $this->client->applications()->include('organization', 'environments')->list(...$filters),
+            fn () => $this->client->applications()->withDefaultIncludes()->list(...$filters),
             'Fetching applications...',
         );
 

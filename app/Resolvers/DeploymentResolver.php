@@ -41,7 +41,7 @@ class DeploymentResolver extends Resolver
         return $this->resolveFromIdentifier(
             $identifier,
             fn () => spin(
-                fn () => $this->client->deployments()->include('environment')->get($identifier),
+                fn () => $this->client->deployments()->include('environment', 'initiator')->get($identifier),
                 'Fetching deployment...',
             ),
         );
@@ -53,7 +53,7 @@ class DeploymentResolver extends Resolver
         /** @var Collection<int, Deployment> $deployments */
         $deployments = collect(
             spin(
-                fn () => $this->client->deployments()->include('environment')->list($environment->id)->items(),
+                fn () => $this->client->deployments()->include('environment', 'initiator')->list($environment->id)->items(),
                 'Fetching deployments...',
             ),
         );

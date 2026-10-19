@@ -93,7 +93,7 @@ it('sends no filters when none are given', function () {
 
     $this->artisan('cache:list', ['--json' => true, '--no-interaction' => true])->assertSuccessful();
 
-    MockClient::global()->assertSent(fn ($request) => $request instanceof ListCachesRequest && $request->query()->all() === ['page' => 1]);
+    MockClient::global()->assertSent(fn ($request) => $request instanceof ListCachesRequest && $request->query()->all() === ['include' => 'environments', 'page' => 1]);
 });
 
 it('rejects a filter value outside the documented values', function () {

@@ -53,4 +53,9 @@ class ObjectStorageBucketsResource extends Resource
     {
         $this->send(new DeleteObjectStorageBucketRequest($bucketId));
     }
+
+    public function withDefaultIncludes(): static
+    {
+        return $this->include('keys');
+    }
 }
