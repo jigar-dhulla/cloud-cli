@@ -3,8 +3,10 @@
 namespace App\Commands;
 
 use App\Client\Requests\UpdateCacheRequestData;
+use App\Concerns\ValidatesCacheInput;
 use App\Dto\Cache;
 use App\Dto\CacheType;
+use App\Enums\CacheEvictionPolicy;
 use App\Exceptions\CommandExitException;
 
 use function Laravel\Prompts\confirm;
@@ -16,6 +18,8 @@ use function Laravel\Prompts\text;
 
 class CacheUpdate extends BaseCommand
 {
+    use ValidatesCacheInput;
+
     protected ?string $jsonDataClass = Cache::class;
 
     protected $signature = 'cache:update
@@ -24,9 +28,17 @@ class CacheUpdate extends BaseCommand
                             {--size= : Cache size}
                             {--auto-upgrade-enabled= : Enable auto upgrade}
                             {--is-public= : Whether cache is public}
+                            {--eviction-policy= : Eviction policy}
+                            {--uses-hibernation= : Hibernate the cache when idle}
+                            {--hibernation-timeout= : Minutes idle before hibernating (1-60), implies --uses-hibernation}
                             {--force : Force update without confirmation}';
 
     protected $description = 'Update a cache';
+
+    /**
+     * @var array<CacheType>|null
+     */
+    protected ?array $types = null;
 
     public function handle()
     {
@@ -60,6 +72,13 @@ class CacheUpdate extends BaseCommand
     {
         $autoUpgradeEnabled = $this->form()->get('auto_upgrade_enabled');
         $isPublic = $this->form()->get('is_public');
+        $usesHibernation = $this->form()->boolean('uses_hibernation');
+        $hibernationTimeout = $this->form()->get('hibernation_timeout');
+
+        // A timeout on its own means the user wants hibernation.
+        if ($usesHibernation === null && filled($hibernationTimeout)) {
+            $usesHibernation = true;
+        }
 
         spin(
             fn () => $this->client->caches()->update(
@@ -69,6 +88,9 @@ class CacheUpdate extends BaseCommand
                     size: $this->form()->get('size'),
                     autoUpgradeEnabled: $autoUpgradeEnabled !== null ? filter_var($autoUpgradeEnabled, FILTER_VALIDATE_BOOLEAN) : null,
                     isPublic: $isPublic !== null ? filter_var($isPublic, FILTER_VALIDATE_BOOLEAN) : null,
+                    evictionPolicy: $this->form()->get('eviction_policy'),
+                    usesHibernation: $usesHibernation,
+                    hibernationTimeout: filled($hibernationTimeout) ? (int) $hibernationTimeout : null,
                 ),
             ),
             'Updating cache...',
@@ -86,7 +108,7 @@ class CacheUpdate extends BaseCommand
                     label: 'Name',
                     required: true,
                     default: $value ?? $cache->name,
-                    validate: fn ($v) => strlen($v) < 3 ? 'Name must be at least 3 characters' : null,
+                    validate: fn ($v) => $this->validateCacheName($v),
                 ),
             ),
         )->setPreviousValue($cache->name);
@@ -123,16 +145,76 @@ class CacheUpdate extends BaseCommand
             ),
             'is-public',
         )->setPreviousValue($cache->isPublic ? 'true' : 'false');
+
+        $this->form()->define(
+            'eviction_policy',
+            fn ($resolver) => $resolver->fromInput(
+                fn ($value) => select(
+                    label: 'Eviction policy',
+                    options: CacheEvictionPolicy::options(),
+                    default: $value ?? $cache->evictionPolicy ?? CacheEvictionPolicy::ALLKEYS_LRU->value,
+                ),
+            ),
+        )->setPreviousValue($cache->evictionPolicy);
+
+        $this->form()->define(
+            'uses_hibernation',
+            fn ($resolver) => $resolver->fromInput(
+                fn ($value) => confirm(
+                    label: 'Hibernate when idle?',
+                    default: $value !== null ? filter_var($value, FILTER_VALIDATE_BOOLEAN) : $cache->usesHibernation,
+                ),
+            ),
+            'uses-hibernation',
+        )->setLabel('Hibernation')->setPreviousValue($cache->usesHibernation ? 'true' : 'false');
+
+        $this->form()->define(
+            'hibernation_timeout',
+            fn ($resolver) => $resolver->fromInput(
+                fn ($value) => text(
+                    label: 'Minutes idle before hibernating',
+                    default: (string) ($value ?? $cache->hibernationTimeout ?? ''),
+                    hint: 'Leave blank to keep the current setting',
+                    validate: fn ($v) => blank($v) ? null : $this->validateHibernationTimeout($v),
+                ),
+            ),
+            'hibernation-timeout',
+        )->setPreviousValue($cache->hibernationTimeout !== null ? (string) $cache->hibernationTimeout : null);
+    }
+
+    /**
+     * @return array<CacheType>
+     */
+    protected function types(): array
+    {
+        return $this->types ??= spin(
+            fn () => $this->client->caches()->types(),
+            'Fetching cache types...',
+        );
+    }
+
+    protected function cacheType(Cache $cache): ?CacheType
+    {
+        return collect($this->types())->first(fn (CacheType $type) => $type->type === $cache->type);
+    }
+
+    /**
+     * @return array<string>
+     */
+    protected function unsupportedFields(Cache $cache): array
+    {
+        $type = $this->cacheType($cache);
+
+        return array_values(array_filter([
+            $type?->supportsEvictionPolicy ? null : 'eviction_policy',
+            $type?->supportsHibernationFor($cache->size) ? null : 'uses_hibernation',
+            $type?->supportsHibernationFor($cache->size) ? null : 'hibernation_timeout',
+        ]));
     }
 
     protected function sizeOptions(Cache $cache): array
     {
-        $types = spin(
-            fn () => $this->client->caches()->types(),
-            'Fetching cache sizes...',
-        );
-
-        $type = collect($types)->first(fn (CacheType $type) => $type->type === $cache->type);
+        $type = $this->cacheType($cache);
 
         if (! $type) {
             $this->failAndExit("Unable to find sizes for cache type: {$cache->type}");
@@ -143,11 +225,15 @@ class CacheUpdate extends BaseCommand
 
     protected function collectDataAndUpdate(Cache $cache): Cache
     {
+        $unsupported = $this->unsupportedFields($cache);
+
         $selection = multiselect(
             label: 'What do you want to update?',
-            options: collect($this->form()->defined())->mapWithKeys(fn ($field, $key) => [
-                $field->key => $field->label(),
-            ])->toArray(),
+            options: collect($this->form()->defined())
+                ->reject(fn ($field) => in_array($field->key, $unsupported))
+                ->mapWithKeys(fn ($field) => [
+                    $field->key => $field->label(),
+                ])->toArray(),
         );
 
         if (empty($selection)) {
@@ -158,6 +244,11 @@ class CacheUpdate extends BaseCommand
 
         foreach ($selection as $optionName) {
             $this->form()->prompt($optionName);
+        }
+
+        // Switching hibernation on is the natural moment to pick a timeout, so offer it without making the user select it too.
+        if (! $cache->usesHibernation && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
+            $this->form()->prompt('hibernation_timeout');
         }
 
         return $this->updateCache($cache);

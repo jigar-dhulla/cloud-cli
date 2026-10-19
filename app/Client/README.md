@@ -31,6 +31,7 @@ $data = $response->json();
 - `GetApplicationRequest` - Get a specific application
 - `CreateApplicationRequest` - Create a new application
 - `UpdateApplicationRequest` - Update an application
+- `DeleteApplicationAvatarRequest` - Remove an application's avatar
 
 #### Environments
 - `ListEnvironmentsRequest` - List environments for an application
@@ -132,6 +133,7 @@ $data = $response->json();
 - `CreateWebSocketClusterRequest` - Create a new cluster
 - `UpdateWebSocketClusterRequest` - Update a cluster
 - `DeleteWebSocketClusterRequest` - Delete a cluster
+- `ListWebSocketClusterTypesRequest` - List cluster types with their regions and max connection tiers
 
 #### WebSocket Applications
 - `ListWebSocketApplicationsRequest` - List applications for a cluster
@@ -148,6 +150,9 @@ $data = $response->json();
 
 #### Dedicated Clusters
 - `ListDedicatedClustersRequest` - List all dedicated clusters
+
+#### Edge Networks
+- `ListEdgeNetworksRequest` - List edge networks, including the shared one
 
 ## Examples
 

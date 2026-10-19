@@ -150,13 +150,14 @@ Many commands accept an optional resource ID/name and support `--json` for machi
 
 ### Applications
 
-| Command                    | Description             |
-| -------------------------- | ----------------------- |
-| `cloud application:list`   | List applications       |
-| `cloud application:get`    | Get application details |
-| `cloud application:create` | Create an application   |
-| `cloud application:update` | Update an application   |
-| `cloud application:delete` | Delete an application   |
+| Command                           | Description                    |
+| --------------------------------- | ------------------------------ |
+| `cloud application:list`          | List applications              |
+| `cloud application:get`           | Get application details        |
+| `cloud application:create`        | Create an application          |
+| `cloud application:update`        | Update an application          |
+| `cloud application:delete`        | Delete an application          |
+| `cloud application:delete-avatar` | Remove an application's avatar |
 
 ### Environments
 
@@ -189,6 +190,7 @@ Secrets are organization-wide encrypted values that can be attached to environme
 | `cloud secret:delete`             | Delete a secret                         |
 | `cloud environment-secret:list`   | List secrets attached to an environment |
 | `cloud environment-secret:attach` | Attach secrets to an environment        |
+| `cloud environment-secret:detach` | Detach secrets from an environment      |
 
 `secret:create` and `secret:update` encrypt with `ext-sodium`, which ships with PHP but is a separate package on some distributions. No other command needs it.
 
@@ -308,6 +310,7 @@ Without an environment argument, `resend:attach` offers only environments withou
 | `cloud websocket-cluster:update`      | Update a WebSocket cluster     |
 | `cloud websocket-cluster:delete`      | Delete a WebSocket cluster     |
 | `cloud websocket-cluster:metrics`     | View cluster metrics           |
+| `cloud websocket-cluster:types`       | List cluster types and tiers   |
 | `cloud websocket-application:list`    | List WebSocket applications    |
 | `cloud websocket-application:get`     | Get application details        |
 | `cloud websocket-application:create`  | Create a WebSocket application |
@@ -346,9 +349,9 @@ Managed queues are a special kind of instance. Pass the instance ID directly or 
 | `cloud managed-queue:set-default`       | Set a managed queue as the default       |
 | `cloud managed-queue:failed-jobs`       | List failed jobs for a managed queue     |
 | `cloud managed-queue:retry-failed-job`  | Retry a failed job on a managed queue    |
-| `cloud managed-queue:delete-failed-job` | Delete a failed job from a managed queue |
+| `cloud managed-queue:delete-failed-job` | Delete failed jobs from a managed queue  |
 
-`managed-queue:create` accepts `--name`, `--size`, `--max-workers`, `--visibility-timeout`, `--polling-interval` and `--shutdown-timeout` so it can run non-interactively. `pause`, `purge` and `delete-failed-job` accept `--force` to skip the confirmation prompt.
+`managed-queue:create` accepts `--name`, `--size`, `--max-workers`, `--visibility-timeout`, `--polling-interval` and `--shutdown-timeout` so it can run non-interactively. `pause`, `purge` and `delete-failed-job` accept `--force` to skip the confirmation prompt. `delete-failed-job` takes one or more job IDs, or `--failed-before` to delete every job that failed before a date.
 
 ### Usage
 
@@ -367,6 +370,7 @@ Managed queues are a special kind of instance. Pass the instance ID directly or 
 | `cloud browser`                | Open the application in the browser      |
 | `cloud ip:addresses`           | Get Laravel Cloud IP addresses by region |
 | `cloud dedicated-cluster:list` | List dedicated clusters                  |
+| `cloud edge-network:list`      | List edge networks                       |
 | `cloud tinker`                 | Tinker in your Laravel Cloud environment |
 | `cloud skills:install`         | Install Laravel Cloud CLI agent skills   |
 | `cloud completions`            | Generate and install shell completions   |

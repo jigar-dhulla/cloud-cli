@@ -63,7 +63,7 @@ class ManagedQueueFailedJobList extends BaseCommand
                 'd' => [
                     fn ($row) => $this->call('managed-queue:delete-failed-job', [
                         'instance' => $instance->id,
-                        'job' => $row[0],
+                        'jobs' => [$row[0]],
                     ]),
                     'Delete',
                 ],

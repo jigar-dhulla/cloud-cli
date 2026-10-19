@@ -4,6 +4,7 @@ namespace App\Concerns;
 
 use App\Client\Requests\CreateDatabaseClusterRequestData;
 use App\Dto\DatabaseCluster;
+use App\Dto\DatabasePreset;
 use App\Dto\DatabaseType;
 use App\Dto\Region;
 use App\Enums\DatabaseClusterPreset;
@@ -149,43 +150,55 @@ trait CreatesDatabaseCluster
 
     protected function databaseClusterConfigFromPreset(DatabaseType $type): ?array
     {
-        $clusterPreset = DatabaseClusterPreset::tryFrom($type->type);
+        $region = $this->form()->get('region');
 
-        if ($clusterPreset === null) {
-            // The schema prompts can't be answered from flags, so headless runs would send placeholder values.
-            if (! $this->isInteractive()) {
-                throw new RuntimeException(sprintf(
-                    'Database type "%s" has no presets and can only be created interactively. Types with presets: %s',
-                    $type->type,
-                    implode(', ', array_map(fn (DatabaseClusterPreset $e) => $e->value, DatabaseClusterPreset::cases())),
-                ));
-            }
+        $presets = collect(spin(
+            fn () => $this->client->databaseClusters()->presets($type->type, $region),
+            'Fetching database presets...',
+        ))->keyBy('key');
 
+        if ($presets->isEmpty() && ! $this->isInteractive()) {
+            throw new RuntimeException(sprintf('No presets are available for database type "%s" in region "%s".', $type->type, $region));
+        }
+
+        if ($this->databaseClusterPreset === 'custom') {
             return null;
         }
 
-        $presets = $clusterPreset->presets();
-        $presets['Custom'] = [];
-
-        if ($this->databaseClusterPreset) {
-            return $this->databaseClusterPreset === 'Custom' ? null : $presets[$this->databaseClusterPreset];
+        // The cached choice may not exist for a region picked on a later attempt.
+        if ($this->databaseClusterPreset !== null && $presets->has($this->databaseClusterPreset)) {
+            return $presets->get($this->databaseClusterPreset)->config;
         }
 
         $this->databaseClusterPreset = select(
             label: 'Configuration',
-            options: collect($presets)->keys()->mapWithKeys(fn ($key) => [$key => $key])->toArray(),
-            default: array_key_first($presets),
+            options: $presets->map(fn (DatabasePreset $preset) => $preset->label)->put('custom', 'Custom')->toArray(),
+            default: $presets->keys()->first() ?? 'custom',
             required: true,
-            info: fn ($key) => count($presets[$key]) > 0
-                ? $clusterPreset->description()($presets[$key])
-                : $key.' configuration',
+            info: fn ($key) => $presets->has($key)
+                ? $this->describeDatabasePreset($type, $presets->get($key))
+                : 'Custom configuration',
         );
 
-        if ($this->databaseClusterPreset !== 'Custom') {
-            return $presets[$this->databaseClusterPreset];
+        if ($this->databaseClusterPreset === 'custom') {
+            return null;
         }
 
-        return null;
+        return $presets->get($this->databaseClusterPreset)->config;
+    }
+
+    protected function describeDatabasePreset(DatabaseType $type, DatabasePreset $preset): string
+    {
+        // Only some types have a hand-written summary; the rest (such as RDS) get their config listed as-is.
+        if ($clusterPreset = DatabaseClusterPreset::tryFrom($type->type)) {
+            return $clusterPreset->description()($preset->config);
+        }
+
+        return collect($preset->config)
+            ->filter(fn ($value) => is_scalar($value))
+            ->map(fn ($value, $key) => str_replace('_', ' ', $key).': '.var_export($value, true))
+            ->map(fn ($line) => str_replace("'", '', $line))
+            ->implode(' · ');
     }
 
     protected function promptForDatabaseClusterConfig(DatabaseType $type): array
@@ -270,33 +283,15 @@ trait CreatesDatabaseCluster
             ])->toArray();
     }
 
-    protected function createDatabaseClusterWithOptions(string $type, string $version, string $preset, string $name, string $region): DatabaseCluster
+    protected function createDatabaseClusterWithOptions(string $type, string $version, DatabasePreset $preset, string $name, string $region): DatabaseCluster
     {
-        $enum = DatabaseClusterPreset::tryFrom($type);
-
-        if ($enum === null) {
-            throw new RuntimeException(
-                'Invalid database type. Must be one of: '.implode(', ', array_map(fn (DatabaseClusterPreset $e) => $e->value, DatabaseClusterPreset::cases())),
-            );
-        }
-
-        $presets = $enum->presets();
-
-        if (! array_key_exists($preset, $presets)) {
-            throw new RuntimeException(
-                'Invalid database preset. Must be one of: '.implode(', ', array_keys($presets)),
-            );
-        }
-
-        $config = $presets[$preset];
-
         return spin(
             fn () => $this->client->databaseClusters()->create(
                 new CreateDatabaseClusterRequestData(
                     type: $type,
                     name: $name,
                     region: $region,
-                    config: $config,
+                    config: $preset->config,
                     version: $version,
                 ),
             ),

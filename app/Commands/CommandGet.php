@@ -29,17 +29,17 @@ class CommandGet extends BaseCommand
 
         $this->outputJsonIfWanted($cmd);
 
-        dataList([
+        dataList(array_filter([
             'ID' => $cmd->id,
             'Command' => $cmd->command,
             'Status' => $cmd->status->label(),
             'Exit Code' => $cmd->exitCode ?? '—',
+            'Failure Reason' => $cmd->failureReason,
             'Output' => $cmd->output ?? '—',
             'Started At' => $cmd->startedAt?->format('Y-m-d H:i:s') ?? '—',
             'Finished At' => $cmd->finishedAt?->format('Y-m-d H:i:s') ?? '—',
             'Created At' => $cmd->createdAt?->format('Y-m-d H:i:s') ?? '—',
-            'Updated At' => $cmd->updatedAt?->format('Y-m-d H:i:s') ?? '—',
-        ]);
+        ], fn ($value) => $value !== null));
 
         if ($this->option('copy-output')) {
             $this->copyToClipboard($cmd->output ?? '');

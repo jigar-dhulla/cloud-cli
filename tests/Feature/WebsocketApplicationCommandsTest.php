@@ -1,8 +1,11 @@
 <?php
 
 use App\Client\Resources\Meta\GetOrganizationRequest;
+use App\Client\Resources\WebSocketApplications\CreateWebSocketApplicationRequest;
 use App\Client\Resources\WebSocketApplications\GetWebSocketApplicationRequest;
 use App\Client\Resources\WebSocketApplications\UpdateWebSocketApplicationRequest;
+use App\Client\Resources\WebSocketClusters\GetWebSocketClusterRequest;
+use App\Client\Resources\WebSocketClusters\ListWebSocketClustersRequest;
 use App\ConfigRepository;
 use App\Dto\WebsocketApplication;
 use Illuminate\Support\Facades\Artisan;
@@ -90,4 +93,35 @@ it('still renames an application', function () {
     ])->assertSuccessful();
 
     expect($this->sent->body)->toBe(['name' => 'renamed']);
+});
+
+it('splits allowed origins on commas and whitespace when creating', function () {
+    $application = websocketApplicationResponse();
+
+    MockClient::global([
+        GetOrganizationRequest::class => MockResponse::make(organizationResponse(), 200),
+        GetWebSocketClusterRequest::class => MockResponse::make(['data' => websocketClusterResponse()], 200),
+        ListWebSocketClustersRequest::class => MockResponse::make([
+            'data' => [websocketClusterResponse()],
+            'links' => ['next' => null],
+        ], 200),
+        CreateWebSocketApplicationRequest::class => function (PendingRequest $request) use ($application) {
+            test()->sent->body = $request->body()->all();
+
+            return MockResponse::make(['data' => $application], 201);
+        },
+    ]);
+
+    $this->artisan('websocket-application:create', [
+        'cluster' => 'wss-1',
+        '--name' => 'my-app',
+        '--allowed-origins' => "https://example.com, https://app.example.com\nhttps://admin.example.com",
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($this->sent->body['allowed_origins'])->toBe([
+        'https://example.com',
+        'https://app.example.com',
+        'https://admin.example.com',
+    ]);
 });

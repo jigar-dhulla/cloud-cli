@@ -179,9 +179,11 @@ function bucketResponse(array $overrides = []): array
             'status' => 'available',
             'visibility' => 'private',
             'jurisdiction' => 'default',
+            'location_hint' => 'automatic',
             'endpoint' => 'https://example.r2.cloudflarestorage.com',
             'url' => null,
             'allowed_origins' => null,
+            'cors_settings' => null,
             'created_at' => '2026-01-01T00:00:00.000000Z',
         ], $overrides['attributes'] ?? []),
     ];
@@ -215,6 +217,26 @@ function websocketClusterResponse(array $overrides = []): array
             'hostname' => 'my-reverb.cloud.laravel.com',
             'created_at' => '2026-01-01T00:00:00.000000Z',
         ], $overrides['attributes'] ?? []),
+    ];
+}
+
+function websocketClusterTypesResponse(array $overrides = []): array
+{
+    return [
+        'data' => [
+            array_merge([
+                'type' => 'reverb',
+                'label' => 'Laravel Reverb',
+                'available' => true,
+                'regions' => ['us-east-1', 'eu-central-1'],
+                'max_connections' => [
+                    ['value' => 200, 'label' => '200 connections', 'available' => true],
+                    ['value' => 100, 'label' => '100 connections', 'available' => true],
+                    ['value' => 500, 'label' => '500 connections', 'available' => true],
+                    ['value' => 2000, 'label' => '2,000 connections', 'available' => false],
+                ],
+            ], $overrides),
+        ],
     ];
 }
 
@@ -417,6 +439,26 @@ function versionlessDatabaseTypesResponse(): array
     ];
 }
 
+function databasePresetsResponse(string $type): array
+{
+    $presets = match ($type) {
+        'laravel_mysql' => [
+            ['key' => 'dev', 'label' => 'Dev', 'config' => ['size' => 'mysql-flex-512mb', 'storage' => 5, 'retention_days' => 1, 'uses_scheduled_snapshots' => false, 'is_public' => false]],
+            ['key' => 'prod', 'label' => 'Prod', 'config' => ['size' => 'mysql-flex-2gb', 'storage' => 20, 'retention_days' => 7, 'uses_scheduled_snapshots' => false, 'is_public' => false]],
+        ],
+        'neon_serverless_postgres' => [
+            ['key' => 'dev', 'label' => 'Dev', 'config' => ['cu_min' => 0.25, 'cu_max' => 0.25, 'suspend_seconds' => 300, 'retention_days' => 0]],
+            ['key' => 'prod', 'label' => 'Prod', 'config' => ['cu_min' => 0.25, 'cu_max' => 1, 'suspend_seconds' => 0, 'retention_days' => 7]],
+        ],
+        'aws_rds_postgres' => [
+            ['key' => 'dev', 'label' => 'Dev', 'config' => ['size' => 'db.t4g.micro', 'storage' => 20, 'multi_az' => false]],
+        ],
+        default => [],
+    };
+
+    return ['data' => $presets];
+}
+
 function cacheResponse(array $overrides = []): array
 {
     return [
@@ -430,6 +472,9 @@ function cacheResponse(array $overrides = []): array
             'size' => '250mb',
             'auto_upgrade_enabled' => false,
             'is_public' => false,
+            'eviction_policy' => 'allkeys-lru',
+            'uses_hibernation' => false,
+            'hibernation_timeout' => null,
             'created_at' => '2026-01-01T00:00:00.000000Z',
         ], $overrides['attributes'] ?? []),
     ];
@@ -461,7 +506,7 @@ function metricsResponse(array $data, array $overrides = []): array
         'data' => $data,
         'meta' => [
             'period' => '24h',
-            'available_periods' => ['6h', '24h', '3d', '7d', '30d'],
+            'available_periods' => ['1h', '6h', '24h', '3d', '7d', '30d'],
         ],
     ], $overrides);
 }
@@ -570,6 +615,21 @@ function websocketMetricsResponse(array $overrides = []): array
             ],
             'average' => 2,
             'max' => 2.5,
+        ],
+    ], $overrides);
+}
+
+function edgeNetworkResponse(array $overrides = []): array
+{
+    return array_replace_recursive([
+        'id' => 'en-shared',
+        'type' => 'edge_networks',
+        'attributes' => [
+            'name' => 'Laravel Cloud',
+            'domain' => 'laravel.cloud',
+            'tenancy_type' => 'shared',
+            'status' => 'available',
+            'created_at' => '2026-01-01T00:00:00.000000Z',
         ],
     ], $overrides);
 }

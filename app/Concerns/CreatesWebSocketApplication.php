@@ -63,13 +63,7 @@ trait CreatesWebSocketApplication
             ),
         );
 
-        $allowedOrigins = $this->form()->get('allowed_origins');
-
-        if ($allowedOrigins !== null && $allowedOrigins !== '') {
-            $allowedOrigins = collect(explode(PHP_EOL, $allowedOrigins))->filter(fn ($origin) => $origin !== '')->values()->toArray();
-        } else {
-            $allowedOrigins = null;
-        }
+        $allowedOrigins = $this->parseAllowedOrigins($this->form()->get('allowed_origins'));
 
         return spin(
             fn () => $this->client->websocketApplications()->create(
@@ -92,13 +86,9 @@ trait CreatesWebSocketApplication
         $activityTimeout = (int) ($options['activity_timeout'] ?? 30);
         $allowedOrigins = $options['allowed_origins'] ?? null;
 
-        if (is_array($allowedOrigins)) {
-            $allowedOrigins = array_values(array_filter($allowedOrigins));
-        } elseif (is_string($allowedOrigins) && $allowedOrigins !== '') {
-            $allowedOrigins = collect(explode(PHP_EOL, $allowedOrigins))->filter(fn ($origin) => $origin !== '')->values()->toArray();
-        } else {
-            $allowedOrigins = null;
-        }
+        $allowedOrigins = is_array($allowedOrigins)
+            ? array_values(array_filter($allowedOrigins))
+            : $this->parseAllowedOrigins($allowedOrigins);
 
         return spin(
             fn () => $this->client->websocketApplications()->create(
@@ -112,5 +102,18 @@ trait CreatesWebSocketApplication
             ),
             'Creating WebSocket application...',
         );
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    protected function parseAllowedOrigins(?string $origins): ?array
+    {
+        $origins = collect(preg_split('/[\s,]+/', $origins ?? ''))
+            ->filter()
+            ->values()
+            ->all();
+
+        return $origins === [] ? null : $origins;
     }
 }

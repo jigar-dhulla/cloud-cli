@@ -16,7 +16,7 @@ class EnvironmentMetrics extends BaseCommand
 
     protected $signature = 'environment:metrics
                             {environment? : The environment ID or name}
-                            {--period=24h : Time period (6h, 24h, 3d, 7d, 30d)}';
+                            {--period=24h : Time period (1h, 6h, 24h, 3d, 7d, 30d)}';
 
     protected $description = 'View environment compute and HTTP metrics';
 

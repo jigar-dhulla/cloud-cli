@@ -128,3 +128,45 @@ it('keeps errors passed in before prompting', function () {
 
     expect($resolver->value())->toBe('taken');
 });
+
+it('prompts again for the nearest parent field of a nested error', function () {
+    $errors = new ValidationErrors;
+    $errors->add('probes.startup.path', 'The path may not be greater than 255 characters.');
+    $errors->add('global', 'Something went wrong.');
+
+    $form = (new Form)
+        ->isInteractive(true)
+        ->options([])
+        ->arguments([]);
+
+    $prompts = 0;
+
+    $form->prompt('probes.startup', function ($resolver) use (&$prompts) {
+        return $resolver->fromInput(function ($value) use (&$prompts) {
+            $prompts++;
+
+            return $value === null ? 'path=/too-long' : 'path=/up';
+        });
+    });
+
+    expect($form->fieldForError('probes.startup.path'))->toBe('probes.startup')
+        ->and($form->fieldForError('global'))->toBeNull()
+        ->and($form->canPromptForAnyOf($errors))->toBeTrue();
+
+    $form->promptForErrors($errors);
+
+    expect($prompts)->toBe(2)
+        ->and($form->get('probes.startup'))->toBe('path=/up');
+});
+
+it('finds the parent field of a nested error inside a scope', function () {
+    $form = (new Form)
+        ->isInteractive(true)
+        ->options([])
+        ->arguments([]);
+
+    $form->withScope('instance', fn () => $form->define('probes', fn ($resolver) => $resolver));
+
+    expect($form->has('probes'))->toBeFalse()
+        ->and($form->withScope('instance', fn () => $form->fieldForError('probes.startup.path')))->toBe('probes');
+});

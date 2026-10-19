@@ -3,8 +3,8 @@
 namespace App\Commands;
 
 use App\Client\Requests\UpdateWebSocketClusterRequestData;
+use App\Concerns\InteractsWithWebSocketClusterTypes;
 use App\Dto\WebsocketCluster;
-use App\Enums\WebsocketServerMaxConnection;
 use App\Exceptions\CommandExitException;
 
 use function Laravel\Prompts\intro;
@@ -15,11 +15,14 @@ use function Laravel\Prompts\text;
 
 class WebsocketClusterUpdate extends BaseCommand
 {
+    use InteractsWithWebSocketClusterTypes;
+
     protected ?string $jsonDataClass = WebsocketCluster::class;
 
     protected $signature = 'websocket-cluster:update
                             {cluster? : The cluster ID or name}
                             {--name= : Cluster name}
+                            {--max-connections= : Maximum connections per server}
                             {--force : Force update without confirmation}';
 
     protected $description = 'Update a WebSocket cluster';
@@ -56,12 +59,21 @@ class WebsocketClusterUpdate extends BaseCommand
 
     protected function updateCluster(WebsocketCluster $cluster): WebsocketCluster
     {
+        $maxConnections = $this->form()->get('max_connections');
+
+        if ($maxConnections !== null) {
+            $maxConnections = $this->validateMaxConnections(
+                $this->webSocketClusterType($cluster->type->value),
+                $maxConnections,
+            );
+        }
+
         spin(
             fn () => $this->client->websocketClusters()->update(
                 new UpdateWebSocketClusterRequestData(
                     clusterId: $cluster->id,
                     name: $this->form()->get('name'),
-                    maxConnections: $this->form()->integer('max_connections'),
+                    maxConnections: $maxConnections,
                 ),
             ),
             'Updating WebSocket cluster...',
@@ -88,7 +100,7 @@ class WebsocketClusterUpdate extends BaseCommand
             fn ($resolver) => $resolver->fromInput(
                 fn ($value) => select(
                     label: 'Max connections',
-                    options: collect(WebsocketServerMaxConnection::cases())->mapWithKeys(fn ($case) => [$case->value => $case->value])->toArray(),
+                    options: $this->maxConnectionOptions($this->webSocketClusterType($cluster->type->value)),
                     default: $value ?? $cluster->maxConnections->value,
                 ),
             ),

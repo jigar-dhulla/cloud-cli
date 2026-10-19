@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum MetricPeriod: string
 {
+    case ONE_HOUR = '1h';
     case SIX_HOURS = '6h';
     case TWENTY_FOUR_HOURS = '24h';
     case THREE_DAYS = '3d';

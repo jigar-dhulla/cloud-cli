@@ -18,6 +18,7 @@ use App\Concerns\UpdatesBuildDeployCommands;
 use App\Dto\Application;
 use App\Dto\Database;
 use App\Dto\DatabaseCluster;
+use App\Dto\DatabasePreset;
 use App\Dto\DatabaseType;
 use App\Dto\Environment;
 use App\Dto\Region;
@@ -61,11 +62,13 @@ class Ship extends BaseCommand
 
     protected $signature = 'ship
                             {--database= : Database type or alias (postgres, postgres<version>, mysql, or a type from `cloud database:types`). Unversioned aliases use the newest available version. Default: postgres}
-                            {--database-preset= : Preset tier for the database (dev, prod, scale — case-insensitive). Default: dev}
+                            {--database-preset= : Preset for the database, as listed by the API for the type and region (e.g. dev, prod, scale — case-insensitive). Default: dev, or the first preset offered}
                             {--name= : Application name (non-interactive). Default: derived from repository}
                             {--region= : Region (non-interactive). Default: most-used or us-east-2}
                             {--root-directory= : Repository subdirectory containing the app (monorepos)}
                             {--source-provider= : Source provider (github, gitlab, gitlab_self_hosted, bitbucket). Default: detected from the origin remote}
+                            {--build-command= : Build command to run on deploy}
+                            {--cluster= : Dedicated cluster ID to deploy to (see dedicated-cluster:list)}
 ';
 
     protected $description = 'Ship a new application to Laravel Cloud';
@@ -265,6 +268,8 @@ class Ship extends BaseCommand
             region: $region,
             rootDirectory: $this->rootDirectoryOption(),
             sourceProvider: $this->resolveSourceProvider(),
+            buildCommand: $this->option('build-command') ?: null,
+            clusterId: $this->option('cluster') ?: null,
         );
 
         try {
@@ -334,6 +339,8 @@ class Ship extends BaseCommand
                     region: $this->form()->get('region'),
                     rootDirectory: $this->rootDirectoryOption(),
                     sourceProvider: $this->resolveSourceProvider(),
+                    buildCommand: $this->option('build-command') ?: null,
+                    clusterId: $this->option('cluster') ?: null,
                 ),
             ),
         );
@@ -430,7 +437,6 @@ class Ship extends BaseCommand
             'scheduler' => 'uses_scheduler',
             'octane' => 'uses_octane',
             'inertia_ssr' => 'uses_inertia_ssr',
-            'scale_to_zero' => 'uses_sleep_mode',
         ];
 
         foreach ($mapping as $option => $param) {
@@ -439,7 +445,7 @@ class Ship extends BaseCommand
             }
         }
 
-        if ($instanceParams['uses_sleep_mode'] ?? false) {
+        if (in_array('scale_to_zero', $selectedOptions)) {
             $scaleToZeroAfter = number(
                 label: 'Scale to zero after',
                 default: '5',
@@ -449,7 +455,7 @@ class Ship extends BaseCommand
                 max: 60,
             );
 
-            $instanceParams['sleep_timeout'] = $scaleToZeroAfter;
+            $instanceParams['hibernation_timeout'] = (int) $scaleToZeroAfter;
         }
 
         if (in_array('database_cluster', $selectedOptions)) {
@@ -483,8 +489,7 @@ class Ship extends BaseCommand
                         usesScheduler: $instanceParams['uses_scheduler'] ?? null,
                         usesOctane: $instanceParams['uses_octane'] ?? null,
                         usesInertiaSsr: $instanceParams['uses_inertia_ssr'] ?? null,
-                        usesSleepMode: $instanceParams['uses_sleep_mode'] ?? null,
-                        sleepTimeout: isset($instanceParams['sleep_timeout']) ? (int) $instanceParams['sleep_timeout'] : null,
+                        hibernationTimeout: $instanceParams['hibernation_timeout'] ?? null,
                     )),
                     'Updating instance...',
                 ),
@@ -530,8 +535,6 @@ class Ship extends BaseCommand
 
         $instanceParams = [
             'uses_scheduler' => true,
-            'uses_sleep_mode' => false,
-            // 'sleep_timeout' => 5,
             'uses_octane' => $composer?->hasPackage('laravel/octane') ?? false,
         ];
 
@@ -557,8 +560,7 @@ class Ship extends BaseCommand
                 usesScheduler: $instanceParams['uses_scheduler'],
                 usesOctane: $instanceParams['uses_octane'],
                 usesInertiaSsr: null,
-                usesSleepMode: $instanceParams['uses_sleep_mode'],
-                // sleepTimeout: $instanceParams['sleep_timeout'],
+                disableHibernation: true,
             ),
         );
 
@@ -634,23 +636,33 @@ class Ship extends BaseCommand
         return null;
     }
 
-    protected function resolveDatabasePreset(string $type): string
+    protected function resolveDatabasePreset(string $type, string $region): DatabasePreset
     {
-        $validPresets = ['Dev', 'Prod', 'Scale'];
-        $input = $this->option('database-preset') ?? 'Dev';
-        $normalized = ucfirst(strtolower($input));
+        $presets = collect($this->client->databaseClusters()->presets($type, $region));
+        $input = $this->option('database-preset');
 
-        if (! in_array($normalized, $validPresets)) {
-            $this->outputErrorOrThrow('Invalid --database-preset value "'.$input.'". Must be one of: '.implode(', ', $validPresets).' (case-insensitive)');
+        if ($presets->isEmpty()) {
+            $this->outputErrorOrThrow('No presets are available for database type "'.$type.'" in region "'.$region.'".');
         }
 
-        $preset = DatabaseClusterPreset::from($type);
+        $preset = $presets->first(fn (DatabasePreset $preset) => strcasecmp($preset->key, $input ?? 'dev') === 0);
 
-        if (! array_key_exists($normalized, $preset->presets())) {
-            $this->outputErrorOrThrow('Preset "'.$normalized.'" is not available for database type "'.$type.'".');
+        // Plans and regions can leave out the dev preset, so only an explicit choice must match.
+        if ($preset === null && $input === null) {
+            return $presets->first();
         }
 
-        return $normalized;
+        if ($preset === null) {
+            $this->outputErrorOrThrow(sprintf(
+                'Invalid --database-preset value "%s" for database type "%s" in region "%s". Must be one of: %s (case-insensitive)',
+                $input,
+                $type,
+                $region,
+                $presets->pluck('key')->implode(', '),
+            ));
+        }
+
+        return $preset;
     }
 
     protected function provisionDatabaseOpinionated(): ?string
@@ -677,7 +689,6 @@ class Ship extends BaseCommand
             ));
         }
 
-        $preset = $this->resolveDatabasePreset($type->type);
         $defaults = $this->databaseClusterDefaults();
         $name = $defaults['name'] ?? 'database';
         $region = $defaults['region'] ?? 'us-east-2';
@@ -687,6 +698,7 @@ class Ship extends BaseCommand
         $databaseName = $this->appName ? str($this->appName)->snake()->replace('-', '_')->toString() : 'main';
 
         if (! $cluster) {
+            $preset = $this->resolveDatabasePreset($type->type, $region);
             $cluster = $this->createDatabaseClusterWithOptions($type->type, $version, $preset, $name, $region);
             $cluster = $this->client->databaseClusters()->include('databases')->get($cluster->id);
         }
@@ -708,7 +720,6 @@ class Ship extends BaseCommand
     protected function provisionWebsocketOpinionated(): ?string
     {
         $defaults = $this->getWebSocketClusterDefaults();
-        $defaults['max_connections'] = $defaults['max_connections'] ?? 100;
 
         $clusters = $this->client->websocketClusters()->list()->collect();
 

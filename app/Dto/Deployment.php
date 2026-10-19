@@ -80,7 +80,11 @@ class Deployment extends Data
 
     public function failed(): bool
     {
-        return $this->status === DeploymentStatus::DEPLOYMENT_FAILED || $this->status === DeploymentStatus::BUILD_FAILED;
+        return in_array($this->status, [
+            DeploymentStatus::FAILED,
+            DeploymentStatus::BUILD_FAILED,
+            DeploymentStatus::DEPLOYMENT_FAILED,
+        ], true);
     }
 
     public function wasCancelled(): bool

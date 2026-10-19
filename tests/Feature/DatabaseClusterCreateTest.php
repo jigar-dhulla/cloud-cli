@@ -1,13 +1,16 @@
 <?php
 
 use App\Client\Resources\DatabaseClusters\CreateDatabaseClusterRequest;
+use App\Client\Resources\DatabaseClusters\ListDatabasePresetsRequest;
 use App\Client\Resources\DatabaseClusters\ListDatabaseTypesRequest;
 use App\Client\Resources\Meta\GetOrganizationRequest;
 use App\Client\Resources\Meta\ListRegionsRequest;
 use App\Commands\DatabaseClusterCreate;
 use App\ConfigRepository;
 use App\Dto\DatabaseCluster;
+use App\Dto\DatabasePreset;
 use App\Dto\DatabaseType;
+use App\Enums\DatabaseClusterPreset;
 use Illuminate\Support\Sleep;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -32,6 +35,10 @@ function setupDatabaseClusterCreateMocks(): Closure
     MockClient::global([
         GetOrganizationRequest::class => MockResponse::make(organizationResponse(), 200),
         ListDatabaseTypesRequest::class => MockResponse::make(versionlessDatabaseTypesResponse(), 200),
+        ListDatabasePresetsRequest::class => fn (PendingRequest $request) => MockResponse::make(
+            databasePresetsResponse($request->query()->get('type')),
+            200,
+        ),
         ListRegionsRequest::class => MockResponse::make(regionsResponse(), 200),
         CreateDatabaseClusterRequest::class => function (PendingRequest $request) use ($sentBody) {
             $sentBody->value = $request->body()->all();
@@ -151,7 +158,23 @@ it('rejects an invalid default database value', function () {
     expect($sentBody())->toBeNull();
 });
 
-it('refuses a type without presets when not interactive', function () {
+it('sends the config of the first preset the API offers for the type and region', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    MockClient::global()->assertSent(fn ($request) => $request instanceof ListDatabasePresetsRequest
+        && $request->query()->all() === ['type' => 'laravel_mysql', 'region' => 'us-east-1']);
+
+    expect($sentBody()['config'])->toBe(databasePresetsResponse('laravel_mysql')['data'][0]['config']);
+});
+
+it('creates an RDS cluster from the presets the API offers', function () {
     $sentBody = setupDatabaseClusterCreateMocks();
 
     $this->artisan('database-cluster:create', [
@@ -159,23 +182,42 @@ it('refuses a type without presets when not interactive', function () {
         '--type' => 'aws_rds_postgres',
         '--region' => 'us-east-1',
         '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['type'])->toBe('aws_rds_postgres')
+        ->and($sentBody()['config'])->toBe(databasePresetsResponse('aws_rds_postgres')['data'][0]['config']);
+});
+
+it('fails when the API offers no presets and the run is not interactive', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    MockClient::global()->addResponses([
+        ListDatabasePresetsRequest::class => MockResponse::make(['data' => []], 200),
+    ]);
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
     ])->assertFailed();
 
     expect($sentBody())->toBeNull();
 });
 
-it('falls through to the schema prompts for a type without presets when interactive', function () {
-    $command = new class extends DatabaseClusterCreate
-    {
-        protected function isInteractive(): bool
-        {
-            return true;
-        }
-    };
+it('summarises a MySQL preset from its API size', function () {
+    $summary = DatabaseClusterPreset::LaravelMysql->description()(databasePresetsResponse('laravel_mysql')['data'][0]['config']);
 
+    expect($summary)->toBe('Flex (512 MiB RAM) · 5GB storage · 1 day backups');
+});
+
+it('lists the config of a preset for a type without a hand-written summary', function () {
     $type = DatabaseType::createFromResponse(['data' => versionlessDatabaseTypesResponse()['data'][1]]);
+    $preset = DatabasePreset::from(databasePresetsResponse('aws_rds_postgres')['data'][0]);
 
-    expect((fn () => $this->databaseClusterConfigFromPreset($type))->call($command))->toBeNull();
+    $summary = (fn () => $this->describeDatabasePreset($type, $preset))->call(new DatabaseClusterCreate);
+
+    expect($summary)->toBe('size: db.t4g.micro · storage: 20 · multi az: false');
 });
 
 it('reads point-in-time recovery details from the cluster response', function () {
