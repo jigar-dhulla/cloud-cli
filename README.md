@@ -346,9 +346,9 @@ Managed queues are a special kind of instance. Pass the instance ID directly or 
 | `cloud managed-queue:set-default`       | Set a managed queue as the default       |
 | `cloud managed-queue:failed-jobs`       | List failed jobs for a managed queue     |
 | `cloud managed-queue:retry-failed-job`  | Retry a failed job on a managed queue    |
-| `cloud managed-queue:delete-failed-job` | Delete a failed job from a managed queue |
+| `cloud managed-queue:delete-failed-job` | Delete failed jobs from a managed queue  |
 
-`managed-queue:create` accepts `--name`, `--size`, `--max-workers`, `--visibility-timeout`, `--polling-interval` and `--shutdown-timeout` so it can run non-interactively. `pause`, `purge` and `delete-failed-job` accept `--force` to skip the confirmation prompt.
+`managed-queue:create` accepts `--name`, `--size`, `--max-workers`, `--visibility-timeout`, `--polling-interval` and `--shutdown-timeout` so it can run non-interactively. `pause`, `purge` and `delete-failed-job` accept `--force` to skip the confirmation prompt. `delete-failed-job` takes one or more job IDs, or `--failed-before` to delete every job that failed before a date.
 
 ### Usage
 
