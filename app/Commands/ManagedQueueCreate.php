@@ -26,7 +26,7 @@ class ManagedQueueCreate extends BaseCommand
                             {--size= : Instance size}
                             {--max-workers= : Maximum number of workers}
                             {--visibility-timeout= : Visibility timeout in seconds (0-43200)}
-                            {--polling-interval= : Polling interval in seconds (0-60)}
+                            {--polling-interval= : Polling interval in seconds (0-60), previous-generation sizes only}
                             {--shutdown-timeout= : Shutdown timeout in seconds}';
 
     protected $description = 'Create a new managed queue';
@@ -124,7 +124,14 @@ class ManagedQueueCreate extends BaseCommand
             'visibility-timeout',
         );
 
-        if (! $this->isCurrentGeneration($this->form()->get('size'))) {
+        $size = $this->form()->get('size');
+
+        // A warning rather than a refusal: the organization's generation is not the caller's choice.
+        if ($this->isCurrentGeneration($size) && $this->option('polling-interval') !== null) {
+            $this->outputWarning("Laravel Cloud ignores --polling-interval for {$size}, which is a current-generation size.");
+        }
+
+        if (! $this->isCurrentGeneration($size)) {
             $this->form()->prompt(
                 'polling_interval',
                 fn ($resolver) => $resolver
@@ -203,7 +210,6 @@ class ManagedQueueCreate extends BaseCommand
         );
 
         $queueName = $this->form()->get('name');
-        $size = $this->form()->get('size');
 
         return spin(
             fn () => $this->client->instances()->create(
