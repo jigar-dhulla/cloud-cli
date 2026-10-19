@@ -26,7 +26,7 @@ class ManagedQueueCreate extends BaseCommand
                             {--size= : Instance size}
                             {--max-workers= : Maximum number of workers}
                             {--visibility-timeout= : Visibility timeout in seconds (0-43200)}
-                            {--polling-interval= : Polling interval in seconds (0-60)}
+                            {--polling-interval= : Polling interval in seconds (0-60), previous-generation sizes only}
                             {--shutdown-timeout= : Shutdown timeout in seconds}';
 
     protected $description = 'Create a new managed queue';
@@ -75,8 +75,11 @@ class ManagedQueueCreate extends BaseCommand
             ),
         );
 
-        $sizes = collect($this->client->instances()->sizes()->all())
-            ->filter(fn ($size) => str_starts_with($size->name, 'mq-pro'));
+        [$current, $previous] = collect($this->client->instances()->sizes()->all())
+            ->filter(fn ($size) => str_starts_with($size->name, 'mq'))
+            ->partition(fn ($size) => $this->isCurrentGeneration($size->name));
+
+        $sizes = $current->merge($previous);
 
         $this->form()->prompt(
             'size',
@@ -121,21 +124,30 @@ class ManagedQueueCreate extends BaseCommand
             'visibility-timeout',
         );
 
-        $this->form()->prompt(
-            'polling_interval',
-            fn ($resolver) => $resolver
-                ->fromInput(
-                    fn ($value) => (int) number(
-                        label: 'Polling interval (seconds)',
-                        hint: 'How often to check queue pressure for scaling decisions (0-60)',
-                        default: $value ?? '5',
-                        min: 0,
-                        max: 60,
-                    ),
-                )
-                ->nonInteractively(fn () => 5),
-            'polling-interval',
-        );
+        $size = $this->form()->get('size');
+
+        // A warning rather than a refusal: the organization's generation is not the caller's choice.
+        if ($this->isCurrentGeneration($size) && $this->option('polling-interval') !== null) {
+            $this->outputWarning("Laravel Cloud ignores --polling-interval for {$size}, which is a current-generation size.");
+        }
+
+        if (! $this->isCurrentGeneration($size)) {
+            $this->form()->prompt(
+                'polling_interval',
+                fn ($resolver) => $resolver
+                    ->fromInput(
+                        fn ($value) => (int) number(
+                            label: 'Polling interval (seconds)',
+                            hint: 'How often to check queue pressure for scaling decisions (0-60)',
+                            default: $value ?? '5',
+                            min: 0,
+                            max: 60,
+                        ),
+                    )
+                    ->nonInteractively(fn () => 5),
+                'polling-interval',
+            );
+        }
 
         $this->form()->prompt(
             'shutdown_timeout',
@@ -205,12 +217,12 @@ class ManagedQueueCreate extends BaseCommand
                     environmentId: $environmentId,
                     name: $queueName,
                     type: InstanceType::MANAGED_QUEUE,
-                    size: $this->form()->get('size'),
+                    size: $size,
                     scalingType: InstanceScalingType::CUSTOM,
                     minReplicas: 1,
                     maxReplicas: $this->form()->integer('max_replicas'),
                     visibilityTimeout: $this->form()->integer('visibility_timeout'),
-                    pollingInterval: $this->form()->integer('polling_interval'),
+                    pollingInterval: $this->isCurrentGeneration($size) ? null : $this->form()->integer('polling_interval'),
                     shutdownTimeout: $this->form()->integer('shutdown_timeout'),
                     backgroundProcesses: [
                         [
@@ -229,5 +241,10 @@ class ManagedQueueCreate extends BaseCommand
             ),
             'Creating managed queue...',
         );
+    }
+
+    protected function isCurrentGeneration(?string $size): bool
+    {
+        return str_starts_with((string) $size, 'mq.');
     }
 }
