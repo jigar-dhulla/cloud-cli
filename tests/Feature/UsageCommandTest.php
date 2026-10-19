@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Sleep;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
+use Tests\Fixtures\InteractiveUsageCommand;
 
 beforeEach(function () {
     Sleep::fake();
@@ -77,10 +78,14 @@ it('outputs full usage payload as camelCase JSON', function () {
     expect($decoded['databases'][0])->toMatchArray([
         'name' => 'primary',
         'identifier' => 'db-1',
-        'computeUnitLabel' => 'CU',
-        'storageGb' => 12.5,
-        'totalCents' => 4000,
+        'totalCents' => 4090,
     ]);
+    expect($decoded['databases'][0]['storage'])->toEqual(['cents' => 1500, 'units' => 12.5, 'unitLabel' => 'GB']);
+    expect($decoded['databases'][0]['compute'])->toEqual(['cents' => 2000, 'units' => 3.2, 'unitLabel' => 'CU']);
+    expect($decoded['databases'][0]['dataTransfer'])->toEqual(['cents' => 90, 'units' => 6.0, 'unitLabel' => 'GB']);
+    expect($decoded['databases'][0]['backup'])->toEqual(['cents' => 500, 'units' => 4.0, 'unitLabel' => 'GB']);
+    expect($decoded['databases'][1]['dataTransfer'])->toBeNull();
+    expect($decoded['databases'][1]['backup'])->toBeNull();
 
     expect($decoded['buckets'][0])->toMatchArray([
         'classARequestsCount' => 1000,
@@ -171,4 +176,31 @@ it('handles null bandwidth, credits, and alert gracefully', function () {
     expect($decoded['bandwidth'])->toBeNull();
     expect($decoded['credits'])->toBeNull();
     expect($decoded['alert'])->toBeNull();
+});
+
+it('shows database storage, compute, data transfer, and backup usage in the detailed view', function () {
+    Artisan::registerCommand(new InteractiveUsageCommand);
+
+    MockClient::global([
+        GetOrganizationRequest::class => MockResponse::make(organizationResponse(), 200),
+        GetUsageRequest::class => MockResponse::make(usageResponse(), 200),
+        ListApplicationsRequest::class => MockResponse::make(['data' => []], 200),
+    ]);
+
+    $exitCode = Artisan::call('test:interactive-usage', ['--detailed' => true]);
+
+    expect($exitCode)->toBe(0);
+    expect(Artisan::output())
+        ->toContain('Data Transfer')
+        ->toContain('$15.00')
+        ->toContain('12.5 GB')
+        ->toContain('$20.00')
+        ->toContain('3.2 CU')
+        ->toContain('$0.90')
+        ->toContain('6 GB')
+        ->toContain('$5.00')
+        ->toContain('4 GB')
+        ->toContain('$2.50')
+        ->toContain('20 GB')
+        ->toContain('720 CU');
 });

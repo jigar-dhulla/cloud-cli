@@ -288,6 +288,21 @@ function databaseClusterResponse(array $overrides = []): array
     ];
 }
 
+/**
+ * Mirrors the server's DatabaseUsageMetric::toArray() after snake-casing.
+ */
+function usageDatabaseMetric(int $cents, float $units, string $unitLabel, array $breakdown = [], ?string $info = null, ?string $label = null): array
+{
+    return [
+        'cents' => $cents,
+        'units' => $units,
+        'unit_label' => $unitLabel,
+        'breakdown' => $breakdown,
+        'info' => $info,
+        'label' => $label,
+    ];
+}
+
 function usageResponse(array $overrides = []): array
 {
     $base = [
@@ -314,15 +329,35 @@ function usageResponse(array $overrides = []): array
                     [
                         'name' => 'primary',
                         'identifier' => 'db-1',
-                        'type' => 'serverless-postgres',
-                        'storage_gb' => 12.5,
-                        'storage_cents' => 1500,
-                        'compute_units' => 3.2,
-                        'compute_unit_label' => 'CU',
-                        'compute_cents' => 2000,
-                        'backups_gb' => 4,
-                        'backups_cents' => 500,
-                        'total_cents' => 4000,
+                        'type' => 'Laravel Serverless Postgres 17',
+                        'storage' => usageDatabaseMetric(1500, 12.5, 'GB', [
+                            usageDatabaseMetric(1200, 10.0, 'GB', label: 'Root Branch Storage'),
+                            usageDatabaseMetric(300, 2.5, 'GB', label: 'Child Branch Storage'),
+                            usageDatabaseMetric(0, 0.0, 'GB', label: 'PITR Storage'),
+                            usageDatabaseMetric(0, 0.0, 'GB', label: 'Storage (Legacy)'),
+                        ]),
+                        'compute' => usageDatabaseMetric(2000, 3.2, 'CU', [
+                            usageDatabaseMetric(2000, 3.2, 'CU', label: 'Compute'),
+                            usageDatabaseMetric(0, 0.0, 'CU', label: 'Compute (Legacy)'),
+                        ]),
+                        'data_transfer' => usageDatabaseMetric(90, 6.0, 'GB', [
+                            usageDatabaseMetric(90, 6.0, 'GB', label: 'Public Data Transfer'),
+                            usageDatabaseMetric(0, 0.0, 'GB', label: 'Private Data Transfer'),
+                        ]),
+                        'backup' => usageDatabaseMetric(500, 4.0, 'GB'),
+                        'total_cents' => 4090,
+                        'deleted' => false,
+                    ],
+                    [
+                        'name' => 'reports',
+                        'identifier' => 'db-2',
+                        'type' => 'AWS RDS MySQL 8.0',
+                        'storage' => usageDatabaseMetric(250, 20.0, 'GB'),
+                        'compute' => usageDatabaseMetric(1200, 720.0, 'CU'),
+                        'data_transfer' => null,
+                        'backup' => null,
+                        'total_cents' => 1450,
+                        'deleted' => false,
                     ],
                 ],
                 'caches' => [
