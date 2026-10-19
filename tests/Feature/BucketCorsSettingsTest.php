@@ -33,11 +33,11 @@ beforeEach(function () {
 
     MockClient::global([
         GetOrganizationRequest::class => MockResponse::make(organizationResponse(), 200),
-        ListObjectStorageBucketsRequest::class => MockResponse::make([
+        ListObjectStorageBucketsRequest::class => fn () => MockResponse::make([
             'data' => [$this->bucket],
             'links' => ['next' => null],
         ], 200),
-        GetObjectStorageBucketRequest::class => MockResponse::make(['data' => $this->bucket], 200),
+        GetObjectStorageBucketRequest::class => fn () => MockResponse::make(['data' => $this->bucket], 200),
         CreateObjectStorageBucketRequest::class => function (PendingRequest $request) {
             $this->sent->body = $request->body()->all();
 
@@ -122,7 +122,7 @@ it('passes an explicit location hint through with a jurisdiction for the api to 
     expect($this->sent->body['location_hint'])->toBe('automatic');
 });
 
-it('sends only the changed cors setting on update', function () {
+it('sends the full cors settings with the changed one applied on update', function () {
     $this->artisan('bucket:update', [
         'bucket' => 'fls-1',
         '--allowed-origins' => 'https://new.example.com',
@@ -130,7 +130,13 @@ it('sends only the changed cors setting on update', function () {
     ])->assertSuccessful();
 
     expect($this->sent->body)->toBe([
-        'cors_settings' => ['allowed_origins' => ['https://new.example.com']],
+        'cors_settings' => [
+            'allowed_origins' => ['https://new.example.com'],
+            'allowed_methods' => ['GET', 'HEAD'],
+            'allowed_headers' => ['*'],
+            'expose_headers' => [],
+            'max_age_seconds' => 3600,
+        ],
     ]);
 });
 
@@ -141,8 +147,9 @@ it('clears allowed origins on update when given an empty list', function () {
         '--no-interaction' => true,
     ])->assertSuccessful();
 
-    expect($this->sent->body)->toBe([
-        'cors_settings' => ['allowed_origins' => []],
+    expect($this->sent->body['cors_settings'])->toMatchArray([
+        'allowed_origins' => [],
+        'allowed_methods' => ['GET', 'HEAD'],
     ]);
 });
 
@@ -156,8 +163,29 @@ it('sends methods and max age on update', function () {
 
     expect($this->sent->body)->toBe([
         'cors_settings' => [
+            'allowed_origins' => ['https://example.com'],
             'allowed_methods' => ['GET', 'PUT'],
+            'allowed_headers' => ['*'],
+            'expose_headers' => [],
             'max_age_seconds' => 600,
+        ],
+    ]);
+});
+
+it('falls back to the legacy allowed origins when the bucket has no cors settings', function () {
+    $this->bucket['attributes']['cors_settings'] = null;
+    $this->bucket['attributes']['allowed_origins'] = ['https://legacy.example.com'];
+
+    $this->artisan('bucket:update', [
+        'bucket' => 'fls-1',
+        '--max-age-seconds' => '60',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($this->sent->body)->toBe([
+        'cors_settings' => [
+            'allowed_origins' => ['https://legacy.example.com'],
+            'max_age_seconds' => 60,
         ],
     ]);
 });

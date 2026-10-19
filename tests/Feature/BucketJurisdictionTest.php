@@ -53,7 +53,6 @@ it('gets a bucket in the us jurisdiction', function () {
 it('creates a bucket in the us jurisdiction', function () {
     $this->artisan('bucket:create', [
         '--name' => 'us-bucket',
-        '--region' => 'us-east-2',
         '--visibility' => 'private',
         '--jurisdiction' => 'us',
         '--key-name' => 'us-key',

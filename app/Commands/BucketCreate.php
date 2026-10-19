@@ -4,7 +4,6 @@ namespace App\Commands;
 
 use App\Client\Requests\CreateObjectStorageBucketRequestData;
 use App\Concerns\DefinesBucketCorsSettings;
-use App\Concerns\DeterminesDefaultRegion;
 use App\Dto\ObjectStorageBucket;
 use App\Enums\FilesystemJurisdiction;
 use App\Enums\FilesystemLocationHint;
@@ -19,11 +18,9 @@ class BucketCreate extends BaseCommand
     protected ?string $jsonDataClass = ObjectStorageBucket::class;
 
     use DefinesBucketCorsSettings;
-    use DeterminesDefaultRegion;
 
     protected $signature = 'bucket:create
                             {--name= : Bucket name}
-                            {--region= : Region}
                             {--visibility= : Visibility (private or public)}
                             {--jurisdiction= : Jurisdiction (default, eu, or us)}
                             {--location-hint= : Where the bucket data is placed (automatic, wnam, enam, weur, eeur, apac, or oc; only automatic with an eu or us jurisdiction)}

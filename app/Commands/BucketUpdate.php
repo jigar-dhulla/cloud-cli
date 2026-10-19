@@ -62,13 +62,19 @@ class BucketUpdate extends BaseCommand
 
     protected function updateBucket(ObjectStorageBucket $bucket): ObjectStorageBucket
     {
+        $corsSettings = $this->corsSettingsFromForm(emptyClears: true);
+
+        if (! $corsSettings->isEmpty()) {
+            $corsSettings = $corsSettings->over($bucket->corsSettings ?? ['allowed_origins' => $bucket->allowedOrigins]);
+        }
+
         spin(
             fn () => $this->client->objectStorageBuckets()->update(
                 new UpdateObjectStorageBucketRequestData(
                     bucketId: $bucket->id,
                     name: $this->form()->get('name'),
                     visibility: $this->form()->get('visibility'),
-                    corsSettings: $this->corsSettingsFromForm(emptyClears: true),
+                    corsSettings: $corsSettings,
                 ),
             ),
             'Updating bucket...',

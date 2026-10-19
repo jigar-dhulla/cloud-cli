@@ -19,6 +19,23 @@ class BucketCorsSettingsData extends RequestData
         return $this->toRequestData() === [];
     }
 
+    /**
+     * Fill the settings this update doesn't change from the bucket's current ones, so the full
+     * object goes out whether the API merges cors_settings or replaces it.
+     *
+     * @param  array<string, mixed>|null  $current
+     */
+    public function over(?array $current): self
+    {
+        return new self(
+            allowedOrigins: $this->allowedOrigins ?? $current['allowed_origins'] ?? null,
+            allowedMethods: $this->allowedMethods ?? $current['allowed_methods'] ?? null,
+            allowedHeaders: $this->allowedHeaders ?? $current['allowed_headers'] ?? null,
+            exposeHeaders: $this->exposeHeaders ?? $current['expose_headers'] ?? null,
+            maxAgeSeconds: $this->maxAgeSeconds ?? $current['max_age_seconds'] ?? null,
+        );
+    }
+
     public function toRequestData(): array
     {
         return $this->filter([
