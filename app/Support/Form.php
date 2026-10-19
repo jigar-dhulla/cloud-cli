@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Dto\ValidationErrors;
+use Illuminate\Support\Str;
 
 class Form
 {
@@ -142,13 +143,70 @@ class Form
         return $this->fields[$key]['resolver']->value();
     }
 
+    public function has(string $key): bool
+    {
+        return array_key_exists($this->scopedKey($key), $this->fields);
+    }
+
+    /**
+     * The field an error belongs to: the error key itself, or the nearest parent that is a field.
+     *
+     * The API reports errors on nested input as dotted keys (probes.startup.path), and those
+     * usually have no field of their own.
+     */
+    public function fieldForError(string $errorKey): ?string
+    {
+        $key = $errorKey;
+
+        while (! $this->has($key)) {
+            if (! str_contains($key, '.')) {
+                return null;
+            }
+
+            $key = Str::beforeLast($key, '.');
+        }
+
+        return $key;
+    }
+
+    /**
+     * Prompt again for every field these errors belong to, once each.
+     */
+    public function promptForErrors(ValidationErrors $errors): void
+    {
+        $this->errors = $errors;
+        $prompted = [];
+
+        foreach ($errors->all() as $errorKey => $message) {
+            $key = $this->fieldForError($errorKey);
+
+            if ($key === null || in_array($key, $prompted, true)) {
+                continue;
+            }
+
+            // The resolver only asks again when the error sits under its own key.
+            if (! $errors->has($key)) {
+                $errors->add($key, $message);
+            }
+
+            $prompted[] = $key;
+
+            $this->prompt($key);
+        }
+    }
+
     /**
      * Whether any of these errors belongs to a field the user can be prompted for again.
      */
     public function canPromptForAnyOf(ValidationErrors $errors): bool
     {
         foreach ($this->fields as $field) {
-            if ($errors->has($field['resolver']->key) && $field['resolver']->canPromptForInput()) {
+            $key = $field['resolver']->key;
+
+            $belongs = collect(array_keys($errors->all()))
+                ->contains(fn (string $errorKey) => $errorKey === $key || str_starts_with($errorKey, $key.'.'));
+
+            if ($belongs && $field['resolver']->canPromptForInput()) {
                 return true;
             }
         }

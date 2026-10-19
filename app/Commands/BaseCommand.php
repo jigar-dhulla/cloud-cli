@@ -396,9 +396,7 @@ abstract class BaseCommand extends Command
                     return $interactiveCallback();
                 }
 
-                foreach ($this->errors->all() as $field => $message) {
-                    $this->form()->prompt($field);
-                }
+                $this->form()->promptForErrors($this->errors);
 
                 return $noninteractiveCallback();
             });
