@@ -13,6 +13,7 @@ use App\Prompts\Renderer;
 use App\Resolvers\EdgeNetworkResolver;
 use Laravel\Prompts\Key;
 use Laravel\Prompts\Prompt;
+use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
@@ -39,6 +40,7 @@ beforeEach(function () {
         edgeNetworkResponse(['id' => 'en-dedicated', 'attributes' => ['name' => 'Acme Edge', 'domain' => 'acme.test', 'tenancy_type' => 'dedicated']]),
     ];
 
+    $this->edgeNetworkStatus = 200;
     $this->sentBody = null;
     $this->edgeNetworkQuery = null;
 
@@ -47,6 +49,10 @@ beforeEach(function () {
         GetApplicationRequest::class => MockResponse::make(['data' => createApplicationResponse()], 200),
         ListEdgeNetworksRequest::class => function (PendingRequest $request) {
             $this->edgeNetworkQuery = $request->query()->all();
+
+            if ($this->edgeNetworkStatus !== 200) {
+                return MockResponse::make(['message' => 'This action is unauthorized.'], $this->edgeNetworkStatus);
+            }
 
             return MockResponse::make(['data' => $this->edgeNetworks, 'links' => ['next' => null]], 200);
         },
@@ -131,6 +137,18 @@ it('leaves the edge network to the organization default when chosen', function (
 
     expect(edgeNetworkResolver(interactive: true)->from())->toBeNull();
 });
+
+it('falls back to the organization default when edge networks cannot be fetched', function () {
+    $this->edgeNetworkStatus = 403;
+
+    expect(edgeNetworkResolver(interactive: true)->from())->toBeNull();
+});
+
+it('still fails when an explicit edge network cannot be fetched', function () {
+    $this->edgeNetworkStatus = 403;
+
+    edgeNetworkResolver(interactive: true)->from('en-dedicated');
+})->throws(RequestException::class);
 
 it('lists edge networks with filters', function () {
     $this->artisan('edge-network:list', ['--status' => 'available', '--json' => true])

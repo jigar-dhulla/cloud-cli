@@ -4,6 +4,8 @@ namespace App\Resolvers;
 
 use App\Dto\EdgeNetwork;
 use Illuminate\Support\Collection;
+use Saloon\Exceptions\Request\FatalRequestException;
+use Saloon\Exceptions\Request\RequestException;
 
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
@@ -43,7 +45,12 @@ class EdgeNetworkResolver extends Resolver
             return null;
         }
 
-        $networks = $this->fetchAll();
+        // The user didn't ask for an edge network, so a failed lookup shouldn't block the create.
+        try {
+            $networks = $this->fetchAll();
+        } catch (RequestException|FatalRequestException) {
+            return null;
+        }
 
         // Every organization has the shared network, so a single result leaves nothing to choose.
         if ($networks->count() <= 1) {
