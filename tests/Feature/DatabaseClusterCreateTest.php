@@ -188,6 +188,22 @@ it('creates an RDS cluster from the presets the API offers', function () {
         ->and($sentBody()['config'])->toBe(databasePresetsResponse('aws_rds_postgres')['data'][0]['config']);
 });
 
+it('rejects a retired type before fetching presets', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql_84',
+        '--engine-version' => '8.4',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    MockClient::global()->assertNotSent(ListDatabasePresetsRequest::class);
+
+    expect($sentBody())->toBeNull();
+});
+
 it('fails when the API offers no presets and the run is not interactive', function () {
     $sentBody = setupDatabaseClusterCreateMocks();
 
