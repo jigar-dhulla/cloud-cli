@@ -126,7 +126,10 @@ class DomainCreate extends BaseCommand
             'allow_downtime',
             fn ($resolver) => $resolver->fromInput(fn ($value) => confirm(
                 label: 'Allow downtime?',
-                default: $value === null ? true : filter_var($value, FILTER_VALIDATE_BOOLEAN),
+                // Allowing downtime skips pre-verification, so default to whatever the chosen verification method implies.
+                default: $value === null
+                    ? $this->form()->get('verification_method') === 'real_time'
+                    : filter_var($value, FILTER_VALIDATE_BOOLEAN),
                 hint: 'Choose no to verify ownership and issue the certificate before traffic moves.',
             )),
         );

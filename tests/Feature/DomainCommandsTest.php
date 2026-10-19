@@ -7,9 +7,12 @@ use App\Client\Resources\Meta\GetOrganizationRequest;
 use App\ConfigRepository;
 use App\Dto\Domain;
 use Illuminate\Support\Facades\Artisan;
+use Laravel\Prompts\Key;
+use Laravel\Prompts\Prompt;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Tests\Fixtures\InteractiveDomainCreateCommand;
 
 beforeEach(function () {
     $this->mockConfig = Mockery::mock(ConfigRepository::class);
@@ -70,6 +73,30 @@ it('sends the cloudflare strategy and downtime options when creating a domain', 
     expect($this->sent->body['cloudflare_strategy'])->toBe('dns_proxy');
     expect($this->sent->body['allow_downtime'])->toBeFalse();
 });
+
+it('defaults downtime to match the chosen verification method', function (array $verificationKeys, bool $allowDowntime) {
+    Artisan::registerCommand(new InteractiveDomainCreateCommand);
+
+    Prompt::fake([
+        ...$verificationKeys,
+        // Accept the downtime default.
+        Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-domain-create', [
+        'environment' => 'env-1',
+        '--name' => 'example.com',
+        '--www-redirect' => 'www_to_root',
+        '--wildcard-enabled' => 'false',
+        '--cloudflare-strategy' => 'none',
+    ])->assertSuccessful();
+
+    expect($this->sent->body['verification_method'])->toBe($allowDowntime ? 'real_time' : 'pre_verification')
+        ->and($this->sent->body['allow_downtime'])->toBe($allowDowntime);
+})->with([
+    'pre-verification keeps traffic until verified' => [[Key::ENTER], false],
+    'real-time allows downtime' => [[Key::DOWN, Key::ENTER], true],
+]);
 
 it('leaves the cloudflare strategy and downtime to the API when not passed', function () {
     $this->artisan('domain:create', [
