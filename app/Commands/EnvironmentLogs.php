@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\intro;
+use function Laravel\Prompts\note;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\warning;
 
@@ -106,9 +107,42 @@ class EnvironmentLogs extends BaseCommand
         ))->display();
 
         if ($page->cursor !== null && ! $this->option('live')) {
-            // The default --from and --to move with the clock, so the hint pins them to this run's window.
-            info("More logs may exist. Fetch the next page with --from={$from->toIso8601String()} --to={$to->toIso8601String()} --cursor={$page->cursor}");
+            info('More logs may exist. Fetch the next page with:');
+            note($this->nextPageCommand($app->id, $environment->id, $from, $to, $page->cursor));
         }
+    }
+
+    protected function nextPageCommand(string $applicationId, string $environmentId, CarbonImmutable $from, CarbonImmutable $to, string $cursor): string
+    {
+        // The default --from and --to move with the clock, so the command pins them to this run's window.
+        $options = [
+            '--from='.$this->shellValue($from->toIso8601String()),
+            '--to='.$this->shellValue($to->toIso8601String()),
+            '--cursor='.$this->shellValue($cursor),
+        ];
+
+        foreach (['type', 'query', 'tail'] as $option) {
+            if (filled($this->option($option))) {
+                $options[] = "--{$option}=".$this->shellValue((string) $this->option($option));
+            }
+        }
+
+        foreach (['case-sensitive', 'whole-word'] as $flag) {
+            if ($this->option($flag)) {
+                $options[] = "--{$flag}";
+            }
+        }
+
+        foreach ($this->option('instance') as $instance) {
+            $options[] = '--instance='.$this->shellValue($instance);
+        }
+
+        return collect(["cloud environment:logs {$applicationId} {$environmentId}", ...$options])->implode(' ');
+    }
+
+    protected function shellValue(string $value): string
+    {
+        return preg_match('/^[A-Za-z0-9_.:+\/=-]+$/', $value) ? $value : escapeshellarg($value);
     }
 
     protected function resolveFrom(): CarbonImmutable
