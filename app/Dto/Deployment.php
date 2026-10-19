@@ -16,6 +16,7 @@ class Deployment extends Data
         public readonly string $id,
         #[WithCast(EnumCast::class)]
         public readonly DeploymentStatus $status,
+        public readonly ?string $slug = null,
         public readonly ?string $commitHash = null,
         public readonly ?string $commitMessage = null,
         public readonly ?string $commitAuthor = null,
@@ -23,10 +24,6 @@ class Deployment extends Data
         public readonly ?CarbonImmutable $startedAt = null,
         #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
         public readonly ?CarbonImmutable $finishedAt = null,
-        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
-        public readonly ?CarbonImmutable $createdAt = null,
-        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
-        public readonly ?CarbonImmutable $updatedAt = null,
         public readonly ?string $failureReason = null,
         public readonly string $branchName = '',
         public readonly string $phpMajorVersion = '',
@@ -34,6 +31,7 @@ class Deployment extends Data
         public readonly ?string $nodeVersion = null,
         public readonly bool $usesOctane = false,
         public readonly bool $usesHibernation = false,
+        public readonly ?int $hibernationWakeUpInterval = null,
         public readonly ?Environment $environment = null,
         public readonly ?string $initiatorId = null,
     ) {
@@ -107,18 +105,16 @@ class Deployment extends Data
         $data = $response['data'] ?? [];
         $attributes = $data['attributes'] ?? [];
         $relationships = $data['relationships'] ?? [];
-        $commit = $attributes['commit'] ?? [];
 
         $transformed = [
             'id' => $data['id'],
             'status' => $attributes['status'] ?? 'pending',
-            'commitHash' => $commit['hash'] ?? $attributes['commit_hash'] ?? null,
-            'commitMessage' => $commit['message'] ?? $attributes['commit_message'] ?? null,
-            'commitAuthor' => $commit['author'] ?? $attributes['commit_author'] ?? null,
+            'slug' => $attributes['slug'] ?? null,
+            'commitHash' => $attributes['commit_hash'] ?? null,
+            'commitMessage' => $attributes['commit_message'] ?? null,
+            'commitAuthor' => $attributes['commit_author'] ?? null,
             'startedAt' => $attributes['started_at'] ?? null,
             'finishedAt' => $attributes['finished_at'] ?? null,
-            'createdAt' => $attributes['created_at'] ?? null,
-            'updatedAt' => $attributes['updated_at'] ?? null,
             'failureReason' => $attributes['failure_reason'] ?? null,
             'branchName' => $attributes['branch_name'] ?? '',
             'phpMajorVersion' => $attributes['php_major_version'] ?? '',
@@ -126,6 +122,7 @@ class Deployment extends Data
             'nodeVersion' => $attributes['node_version'] ?? null,
             'usesOctane' => $attributes['uses_octane'] ?? false,
             'usesHibernation' => $attributes['uses_hibernation'] ?? false,
+            'hibernationWakeUpInterval' => $attributes['hibernation_wake_up_interval'] ?? null,
         ];
 
         if (isset($relationships['environment']['data'])) {
