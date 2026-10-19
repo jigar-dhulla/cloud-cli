@@ -25,12 +25,14 @@ class DatabaseGet extends BaseCommand
         $this->outputJsonIfWanted([
             'id' => $database->id,
             'name' => $database->name,
+            'status' => $database->status,
             'created_at' => $database->createdAt?->toIso8601String(),
         ]);
 
         dataList([
             'ID' => $database->id,
             'Name' => $database->name,
+            'Status' => $database->status ?? '—',
             'Created At' => $database->createdAt?->toIso8601String() ?? '—',
         ]);
     }

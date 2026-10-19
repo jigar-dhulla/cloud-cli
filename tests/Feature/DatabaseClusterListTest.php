@@ -65,8 +65,8 @@ it('reads schemas out of the databases include', function () {
     $output = json_decode(Artisan::output(), true);
 
     expect($output[0]['schemas'])->toBe([
-        ['id' => 'schema-1', 'name' => 'first', 'createdAt' => '2024-01-15T12:00:00.000000Z'],
-        ['id' => 'schema-2', 'name' => 'second', 'createdAt' => '2024-01-15T12:00:00.000000Z'],
+        ['id' => 'schema-1', 'name' => 'first', 'status' => 'available', 'createdAt' => '2024-01-15T12:00:00.000000Z'],
+        ['id' => 'schema-2', 'name' => 'second', 'status' => 'available', 'createdAt' => '2024-01-15T12:00:00.000000Z'],
     ]);
 });
 

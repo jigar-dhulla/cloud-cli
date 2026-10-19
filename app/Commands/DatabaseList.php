@@ -43,10 +43,11 @@ class DatabaseList extends BaseCommand
         }
 
         dataTable(
-            headers: ['ID', 'Name', 'Created At'],
+            headers: ['ID', 'Name', 'Status', 'Created At'],
             rows: $databases->map(fn ($database) => [
                 $database->id,
                 $database->name,
+                $database->status ?? '—',
                 $database->createdAt?->toIso8601String() ?? '—',
             ])->toArray(),
             actions: [
