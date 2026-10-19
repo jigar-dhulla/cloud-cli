@@ -247,7 +247,13 @@ function databaseSnapshotResponse(array $overrides = []): array
         'type' => 'databaseSnapshots',
         'attributes' => array_merge([
             'name' => 'nightly',
+            'description' => null,
+            'type' => 'manual',
             'status' => 'available',
+            'storage_bytes' => null,
+            'pitr_enabled' => null,
+            'pitr_ends_at' => null,
+            'completed_at' => null,
             'created_at' => '2026-01-01T00:00:00.000000Z',
         ], $overrides['attributes'] ?? []),
     ];

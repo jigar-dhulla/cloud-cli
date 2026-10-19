@@ -15,6 +15,14 @@ class DatabaseSnapshot extends Data
         #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
         public readonly ?CarbonImmutable $createdAt = null,
         public readonly ?string $status = null,
+        public readonly ?string $description = null,
+        public readonly ?string $type = null,
+        public readonly ?int $storageBytes = null,
+        public readonly ?bool $pitrEnabled = null,
+        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
+        public readonly ?CarbonImmutable $pitrEndsAt = null,
+        #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
+        public readonly ?CarbonImmutable $completedAt = null,
     ) {
         //
     }
@@ -29,6 +37,12 @@ class DatabaseSnapshot extends Data
             'name' => $attributes['name'] ?? $data['id'],
             'createdAt' => $attributes['created_at'] ?? null,
             'status' => $attributes['status'] ?? null,
+            'description' => $attributes['description'] ?? null,
+            'type' => $attributes['type'] ?? null,
+            'storageBytes' => $attributes['storage_bytes'] ?? null,
+            'pitrEnabled' => $attributes['pitr_enabled'] ?? null,
+            'pitrEndsAt' => $attributes['pitr_ends_at'] ?? null,
+            'completedAt' => $attributes['completed_at'] ?? null,
         ]);
     }
 }
