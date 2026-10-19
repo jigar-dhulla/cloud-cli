@@ -116,13 +116,12 @@ it('sends hibernation settings', function () {
     ]);
 });
 
-it('enables hibernation without a timeout', function () {
-    $sentBody = setupCacheCreateMocks();
+it('requires a timeout to enable hibernation', function () {
+    setupCacheCreateMocks();
 
-    $this->artisan('cache:create', cacheCreateArgs(['--uses-hibernation' => 'true']))->assertSuccessful();
+    $this->artisan('cache:create', cacheCreateArgs(['--uses-hibernation' => 'true']))->assertFailed();
 
-    expect($sentBody())->toMatchArray(['uses_hibernation' => true])
-        ->not->toHaveKey('hibernation_timeout');
+    MockClient::global()->assertNotSent(CreateCacheRequest::class);
 });
 
 it('treats a timeout on its own as enabling hibernation', function () {

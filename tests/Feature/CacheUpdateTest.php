@@ -21,12 +21,12 @@ afterEach(function () {
     MockClient::destroyGlobal();
 });
 
-function setupCacheUpdateMocks(): Closure
+function setupCacheUpdateMocks(array $cacheAttributes = []): Closure
 {
     $sentBody = new stdClass;
 
     MockClient::global([
-        GetCacheRequest::class => MockResponse::make(['data' => cacheResponse()], 200),
+        GetCacheRequest::class => MockResponse::make(['data' => cacheResponse(['attributes' => $cacheAttributes])], 200),
         ListCacheTypesRequest::class => MockResponse::make([
             'data' => [
                 [
@@ -128,8 +128,8 @@ it('treats a timeout on its own as enabling hibernation', function () {
     expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => 30]);
 });
 
-it('enables hibernation without a timeout', function () {
-    $sentBody = setupCacheUpdateMocks();
+it('keeps the current timeout when enabling hibernation without one', function () {
+    $sentBody = setupCacheUpdateMocks(['uses_hibernation' => true, 'hibernation_timeout' => 10]);
 
     $this->artisan('cache:update', [
         'cache' => 'cache-1',
@@ -137,7 +137,19 @@ it('enables hibernation without a timeout', function () {
         '--no-interaction' => true,
     ])->assertSuccessful();
 
-    expect($sentBody())->toBe(['uses_hibernation' => true]);
+    expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => 10]);
+});
+
+it('requires a timeout to enable hibernation when the cache has none', function () {
+    setupCacheUpdateMocks();
+
+    $this->artisan('cache:update', [
+        'cache' => 'cache-1',
+        '--uses-hibernation' => 'true',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    MockClient::global()->assertNotSent(UpdateCacheRequest::class);
 });
 
 it('offers every field when the cache type and size support them', function () {

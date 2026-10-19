@@ -80,6 +80,12 @@ class CacheUpdate extends BaseCommand
             $usesHibernation = true;
         }
 
+        // The API requires a timeout whenever hibernation is sent as on, even if the cache already has one.
+        if ($usesHibernation && blank($hibernationTimeout)) {
+            $hibernationTimeout = $cache->hibernationTimeout
+                ?? $this->failAndExit('Pass --hibernation-timeout (1-60 minutes) to enable hibernation.');
+        }
+
         spin(
             fn () => $this->client->caches()->update(
                 new UpdateCacheRequestData(
@@ -173,9 +179,10 @@ class CacheUpdate extends BaseCommand
             fn ($resolver) => $resolver->fromInput(
                 fn ($value) => text(
                     label: 'Minutes idle before hibernating',
-                    default: (string) ($value ?? $cache->hibernationTimeout ?? ''),
-                    hint: 'Leave blank to keep the current setting',
-                    validate: fn ($v) => blank($v) ? null : $this->validateHibernationTimeout($v),
+                    default: (string) ($value ?? $cache->hibernationTimeout ?? '5'),
+                    required: true,
+                    hint: 'From 1 to 60',
+                    validate: fn ($v) => $this->validateHibernationTimeout($v),
                 ),
             ),
             'hibernation-timeout',
@@ -246,8 +253,8 @@ class CacheUpdate extends BaseCommand
             $this->form()->prompt($optionName);
         }
 
-        // Switching hibernation on is the natural moment to pick a timeout, so offer it without making the user select it too.
-        if (! $cache->usesHibernation && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
+        // The API needs a timeout to turn hibernation on, so ask for one without making the user select it too.
+        if ($cache->hibernationTimeout === null && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
             $this->form()->prompt('hibernation_timeout');
         }
 

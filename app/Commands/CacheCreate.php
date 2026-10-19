@@ -175,9 +175,11 @@ class CacheCreate extends BaseCommand
                 'hibernation_timeout',
                 fn ($resolver) => $resolver->fromInput(fn (?string $value) => text(
                     label: 'Minutes idle before hibernating',
-                    default: $value ?? '',
-                    hint: 'Leave blank to use the default',
-                    validate: fn ($value) => blank($value) ? null : $this->validateHibernationTimeout($value),
+                    // Matches the dashboard's default; the API itself has none.
+                    default: $value ?? '5',
+                    required: true,
+                    hint: 'From 1 to 60',
+                    validate: fn ($value) => $this->validateHibernationTimeout($value),
                 )),
             );
         } else {
@@ -185,6 +187,10 @@ class CacheCreate extends BaseCommand
         }
 
         $hibernationTimeout = $this->form()->get('hibernation_timeout');
+
+        if ($usesHibernation && blank($hibernationTimeout)) {
+            $this->failAndExit('Pass --hibernation-timeout (1-60 minutes) to enable hibernation.');
+        }
 
         $this->form()->define('cluster_id', fn ($resolver) => $resolver);
 
