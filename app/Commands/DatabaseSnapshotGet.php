@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\Dto\DatabaseSnapshot;
+use App\Support\Formatter;
 
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\spin;
@@ -38,8 +39,14 @@ class DatabaseSnapshotGet extends BaseCommand
         dataList([
             'ID' => $snapshot->id,
             'Name' => $snapshot->name,
-            'Created At' => $snapshot->createdAt?->toIso8601String() ?? '—',
+            'Description' => $snapshot->description ?? '—',
+            'Type' => $snapshot->type ?? '—',
             'Status' => $snapshot->status ?? '—',
+            'Size' => $snapshot->storageBytes !== null ? Formatter::bytes($snapshot->storageBytes) : '—',
+            'Point-in-time recovery' => $snapshot->pitrEnabled !== null ? ($snapshot->pitrEnabled ? 'Yes' : 'No') : '—',
+            'PITR Ends At' => $snapshot->pitrEndsAt?->toIso8601String() ?? '—',
+            'Created At' => $snapshot->createdAt?->toIso8601String() ?? '—',
+            'Completed At' => $snapshot->completedAt?->toIso8601String() ?? '—',
         ]);
     }
 }
