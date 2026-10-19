@@ -12,6 +12,7 @@ class Database extends Data
     public function __construct(
         public readonly string $id,
         public readonly string $name,
+        public readonly ?string $status = null,
         #[WithCast(DateTimeInterfaceCast::class, type: CarbonImmutable::class)]
         public readonly ?CarbonImmutable $createdAt = null,
     ) {
@@ -26,6 +27,7 @@ class Database extends Data
         return self::from([
             'id' => $data['id'],
             'name' => $attributes['name'],
+            'status' => $attributes['status'] ?? null,
             'createdAt' => $attributes['created_at'] ?? null,
         ]);
     }
