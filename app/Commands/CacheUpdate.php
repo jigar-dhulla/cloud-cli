@@ -30,7 +30,7 @@ class CacheUpdate extends BaseCommand
                             {--is-public= : Whether cache is public}
                             {--eviction-policy= : Eviction policy}
                             {--uses-hibernation= : Hibernate the cache when idle}
-                            {--hibernation-timeout= : Minutes idle before hibernating (1-60), required when enabling hibernation}
+                            {--hibernation-timeout= : Minutes idle before hibernating (1-60), implies --uses-hibernation}
                             {--force : Force update without confirmation}';
 
     protected $description = 'Update a cache';
@@ -72,7 +72,13 @@ class CacheUpdate extends BaseCommand
     {
         $autoUpgradeEnabled = $this->form()->get('auto_upgrade_enabled');
         $isPublic = $this->form()->get('is_public');
-        $usesHibernation = $this->form()->get('uses_hibernation');
+        $usesHibernation = $this->form()->boolean('uses_hibernation');
+        $hibernationTimeout = $this->form()->get('hibernation_timeout');
+
+        // A timeout on its own means the user wants hibernation.
+        if ($usesHibernation === null && filled($hibernationTimeout)) {
+            $usesHibernation = true;
+        }
 
         spin(
             fn () => $this->client->caches()->update(
@@ -83,8 +89,8 @@ class CacheUpdate extends BaseCommand
                     autoUpgradeEnabled: $autoUpgradeEnabled !== null ? filter_var($autoUpgradeEnabled, FILTER_VALIDATE_BOOLEAN) : null,
                     isPublic: $isPublic !== null ? filter_var($isPublic, FILTER_VALIDATE_BOOLEAN) : null,
                     evictionPolicy: $this->form()->get('eviction_policy'),
-                    usesHibernation: $usesHibernation !== null ? filter_var($usesHibernation, FILTER_VALIDATE_BOOLEAN) : null,
-                    hibernationTimeout: $this->form()->integer('hibernation_timeout'),
+                    usesHibernation: $usesHibernation,
+                    hibernationTimeout: filled($hibernationTimeout) ? (int) $hibernationTimeout : null,
                 ),
             ),
             'Updating cache...',
@@ -167,9 +173,9 @@ class CacheUpdate extends BaseCommand
             fn ($resolver) => $resolver->fromInput(
                 fn ($value) => text(
                     label: 'Minutes idle before hibernating',
-                    required: true,
                     default: (string) ($value ?? $cache->hibernationTimeout ?? ''),
-                    validate: fn ($v) => $this->validateHibernationTimeout($v),
+                    hint: 'Leave blank to keep the current setting',
+                    validate: fn ($v) => blank($v) ? null : $this->validateHibernationTimeout($v),
                 ),
             ),
             'hibernation-timeout',
@@ -240,8 +246,8 @@ class CacheUpdate extends BaseCommand
             $this->form()->prompt($optionName);
         }
 
-        // The API requires a timeout whenever hibernation is switched on.
-        if ($this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
+        // Switching hibernation on is the natural moment to pick a timeout, so offer it without making the user select it too.
+        if (! $cache->usesHibernation && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
             $this->form()->prompt('hibernation_timeout');
         }
 

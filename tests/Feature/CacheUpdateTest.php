@@ -116,6 +116,30 @@ it('sends the hibernation options', function () {
     expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => 30]);
 });
 
+it('treats a timeout on its own as enabling hibernation', function () {
+    $sentBody = setupCacheUpdateMocks();
+
+    $this->artisan('cache:update', [
+        'cache' => 'cache-1',
+        '--hibernation-timeout' => '30',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => 30]);
+});
+
+it('enables hibernation without a timeout', function () {
+    $sentBody = setupCacheUpdateMocks();
+
+    $this->artisan('cache:update', [
+        'cache' => 'cache-1',
+        '--uses-hibernation' => 'true',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody())->toBe(['uses_hibernation' => true]);
+});
+
 it('offers every field when the cache type and size support them', function () {
     setupCacheUpdateMocks();
 

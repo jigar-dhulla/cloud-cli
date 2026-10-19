@@ -89,10 +89,9 @@ it('defaults the eviction policy when the type supports one', function () {
 
     $this->artisan('cache:create', cacheCreateArgs())->assertSuccessful();
 
-    expect($sentBody())->toMatchArray([
-        'eviction_policy' => 'allkeys-lru',
-        'uses_hibernation' => false,
-    ])->not->toHaveKey('hibernation_timeout');
+    expect($sentBody())->toMatchArray(['eviction_policy' => 'allkeys-lru'])
+        ->not->toHaveKey('uses_hibernation')
+        ->not->toHaveKey('hibernation_timeout');
 });
 
 it('sends the requested eviction policy', function () {
@@ -117,12 +116,36 @@ it('sends hibernation settings', function () {
     ]);
 });
 
-it('requires a timeout when hibernation is enabled', function () {
-    setupCacheCreateMocks();
+it('enables hibernation without a timeout', function () {
+    $sentBody = setupCacheCreateMocks();
 
-    $this->artisan('cache:create', cacheCreateArgs(['--uses-hibernation' => 'true']))->assertFailed();
+    $this->artisan('cache:create', cacheCreateArgs(['--uses-hibernation' => 'true']))->assertSuccessful();
 
-    MockClient::global()->assertNotSent(CreateCacheRequest::class);
+    expect($sentBody())->toMatchArray(['uses_hibernation' => true])
+        ->not->toHaveKey('hibernation_timeout');
+});
+
+it('treats a timeout on its own as enabling hibernation', function () {
+    $sentBody = setupCacheCreateMocks();
+
+    $this->artisan('cache:create', cacheCreateArgs(['--hibernation-timeout' => '20']))->assertSuccessful();
+
+    expect($sentBody())->toMatchArray([
+        'uses_hibernation' => true,
+        'hibernation_timeout' => 20,
+    ]);
+});
+
+it('drops the timeout when hibernation is turned off', function () {
+    $sentBody = setupCacheCreateMocks();
+
+    $this->artisan('cache:create', cacheCreateArgs([
+        '--uses-hibernation' => 'false',
+        '--hibernation-timeout' => '20',
+    ]))->assertSuccessful();
+
+    expect($sentBody())->toMatchArray(['uses_hibernation' => false])
+        ->not->toHaveKey('hibernation_timeout');
 });
 
 it('leaves out hibernation when the size does not support it', function () {

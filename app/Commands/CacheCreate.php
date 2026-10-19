@@ -32,7 +32,7 @@ class CacheCreate extends BaseCommand
                             {--is-public= : Is public}
                             {--eviction-policy= : Eviction policy}
                             {--uses-hibernation= : Hibernate the cache when idle}
-                            {--hibernation-timeout= : Minutes idle before hibernating (1-60), required with --uses-hibernation}
+                            {--hibernation-timeout= : Minutes idle before hibernating (1-60), implies --uses-hibernation}
                             {--cluster-id= : Dedicated cluster ID}';
 
     protected $description = 'Create a new cache';
@@ -152,31 +152,39 @@ class CacheCreate extends BaseCommand
             $this->form()->define('eviction_policy', fn ($resolver) => $resolver);
         }
 
-        if ($type->supportsHibernationFor($this->form()->get('size'))) {
+        $timeoutGiven = filled($this->option('hibernation-timeout'));
+
+        // Headless runs only send hibernation when asked, so the API's own default applies otherwise.
+        if ($this->isInteractive() && $type->supportsHibernationFor($this->form()->get('size'))) {
             $this->form()->prompt(
                 'uses_hibernation',
-                fn ($resolver) => $resolver
-                    ->fromInput(fn (?string $value) => confirm(
-                        label: 'Hibernate when idle?',
-                        default: $value !== null ? filter_var($value, FILTER_VALIDATE_BOOLEAN) : false,
-                    ))
-                    ->nonInteractively(fn () => false),
+                fn ($resolver) => $resolver->fromInput(fn (?string $value) => confirm(
+                    label: 'Hibernate when idle?',
+                    default: $value !== null ? filter_var($value, FILTER_VALIDATE_BOOLEAN) : $timeoutGiven,
+                )),
             );
         } else {
             $this->form()->define('uses_hibernation', fn ($resolver) => $resolver);
         }
 
-        if ($this->form()->boolean('uses_hibernation')) {
+        // A timeout on its own means the user wants hibernation.
+        $usesHibernation = $this->form()->boolean('uses_hibernation') ?? ($timeoutGiven ? true : null);
+
+        if ($this->isInteractive() && $usesHibernation) {
             $this->form()->prompt(
                 'hibernation_timeout',
                 fn ($resolver) => $resolver->fromInput(fn (?string $value) => text(
                     label: 'Minutes idle before hibernating',
                     default: $value ?? '',
-                    required: true,
-                    validate: fn ($value) => $this->validateHibernationTimeout($value),
+                    hint: 'Leave blank to use the default',
+                    validate: fn ($value) => blank($value) ? null : $this->validateHibernationTimeout($value),
                 )),
             );
+        } else {
+            $this->form()->define('hibernation_timeout', fn ($resolver) => $resolver);
         }
+
+        $hibernationTimeout = $this->form()->get('hibernation_timeout');
 
         $this->form()->define('cluster_id', fn ($resolver) => $resolver);
 
@@ -190,8 +198,8 @@ class CacheCreate extends BaseCommand
                     autoUpgradeEnabled: $this->form()->boolean('auto_upgrade_enabled') ?? false,
                     isPublic: $this->form()->boolean('is_public'),
                     evictionPolicy: $this->form()->get('eviction_policy'),
-                    usesHibernation: $this->form()->boolean('uses_hibernation'),
-                    hibernationTimeout: $this->form()->boolean('uses_hibernation') ? $this->form()->integer('hibernation_timeout') : null,
+                    usesHibernation: $usesHibernation,
+                    hibernationTimeout: $usesHibernation && filled($hibernationTimeout) ? (int) $hibernationTimeout : null,
                     clusterId: $this->form()->get('cluster_id'),
                 ),
             ),
