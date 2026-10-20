@@ -4,7 +4,9 @@ namespace App\Commands;
 
 use App\Client\Requests\UpdateBackgroundProcessRequestData;
 use App\Dto\BackgroundProcess;
+use App\Enums\InstanceType;
 use App\Exceptions\CommandExitException;
+use Illuminate\Support\Arr;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\intro;
@@ -36,6 +38,15 @@ class BackgroundProcessUpdate extends BaseCommand
     protected $description = 'Update a background process';
 
     protected $aliases = ['process:update'];
+
+    /**
+     * Worker settings that managed queues reject on update.
+     *
+     * @var array<int, string>
+     */
+    protected array $managedQueueRejects = ['connection', 'queue', 'sleep', 'rest'];
+
+    protected ?bool $instanceIsManagedQueue = null;
 
     public function handle()
     {
@@ -72,12 +83,15 @@ class BackgroundProcessUpdate extends BaseCommand
 
     protected function updateProcess(BackgroundProcess $process): BackgroundProcess
     {
+        $config = $this->buildConfig($process);
+
+        // Until laravel/cloud#9175 the API only rebuilt the worker command from the config when the request named the type.
         $data = new UpdateBackgroundProcessRequestData(
             backgroundProcessId: $process->id,
-            type: $this->typeChanged($process) ? $this->targetType($process) : null,
+            type: $this->typeChanged($process) || $config !== null ? $this->targetType($process) : null,
             processes: $this->form()->integer('processes'),
             command: $this->form()->get('command'),
-            config: $this->buildConfig($process),
+            config: $config,
         );
 
         spin(
@@ -108,8 +122,30 @@ class BackgroundProcessUpdate extends BaseCommand
             return null;
         }
 
-        // A config in the request replaces the stored one, so a switch back to a worker keeps the settings it had.
-        return $this->typeChanged($process) ? array_merge($process->config ?? [], $config) : $config;
+        // A config in the request replaces the stored one, so carry the stored settings along with the change.
+        return array_merge($this->storedConfig($process), $config);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function storedConfig(BackgroundProcess $process): array
+    {
+        $config = $process->config ?? [];
+
+        return $this->isManagedQueue($process) ? Arr::except($config, $this->managedQueueRejects) : $config;
+    }
+
+    protected function isManagedQueue(BackgroundProcess $process): bool
+    {
+        if ($process->instanceId === null) {
+            return false;
+        }
+
+        return $this->instanceIsManagedQueue ??= spin(
+            fn () => $this->client->instances()->get($process->instanceId),
+            'Fetching instance...',
+        )->type === InstanceType::MANAGED_QUEUE->value;
     }
 
     protected function targetType(BackgroundProcess $process): string
@@ -176,30 +212,36 @@ class BackgroundProcessUpdate extends BaseCommand
 
     protected function defineWorkerConfigFields(BackgroundProcess $process): void
     {
-        $this->form()->define(
-            'config.connection',
-            fn ($resolver) => $resolver->fromInput(
-                fn ($value) => text(
-                    label: 'Connection',
-                    required: true,
-                    default: $value ?? $process->connection ?? '',
-                ),
-            )->setLabel('Connection'),
-            'connection',
-        )->setPreviousValue($process->connection);
+        $managedQueue = $this->isManagedQueue($process);
 
-        $this->form()->define(
-            'config.queue',
-            fn ($resolver) => $resolver->fromInput(
-                fn ($value) => text(
-                    label: 'Queue',
-                    required: true,
-                    default: $value ?? $process->queue ?? '',
-                    hint: 'Comma-separated for multiple queues',
-                ),
-            )->setLabel('Queue'),
-            'queue',
-        )->setPreviousValue($process->queue);
+        if ($managedQueue) {
+            $this->rejectManagedQueueOptions();
+        } else {
+            $this->form()->define(
+                'config.connection',
+                fn ($resolver) => $resolver->fromInput(
+                    fn ($value) => text(
+                        label: 'Connection',
+                        required: true,
+                        default: $value ?? $process->connection ?? '',
+                    ),
+                )->setLabel('Connection'),
+                'connection',
+            )->setPreviousValue($process->connection);
+
+            $this->form()->define(
+                'config.queue',
+                fn ($resolver) => $resolver->fromInput(
+                    fn ($value) => text(
+                        label: 'Queue',
+                        required: true,
+                        default: $value ?? $process->queue ?? '',
+                        hint: 'Comma-separated for multiple queues',
+                    ),
+                )->setLabel('Queue'),
+                'queue',
+            )->setPreviousValue($process->queue);
+        }
 
         $this->form()->define(
             'config.tries',
@@ -227,31 +269,33 @@ class BackgroundProcessUpdate extends BaseCommand
             'backoff',
         )->setPreviousValue($process->backoff);
 
-        $this->form()->define(
-            'config.sleep',
-            fn ($resolver) => $resolver->fromInput(
-                fn ($value) => number(
-                    label: 'Sleep',
-                    required: true,
-                    default: $value ?? $process->sleep ?? '',
-                    hint: 'Seconds to sleep when no jobs available',
-                ),
-            )->setLabel('Sleep'),
-            'sleep',
-        )->setPreviousValue($process->sleep);
+        if (! $managedQueue) {
+            $this->form()->define(
+                'config.sleep',
+                fn ($resolver) => $resolver->fromInput(
+                    fn ($value) => number(
+                        label: 'Sleep',
+                        required: true,
+                        default: $value ?? $process->sleep ?? '',
+                        hint: 'Seconds to sleep when no jobs available',
+                    ),
+                )->setLabel('Sleep'),
+                'sleep',
+            )->setPreviousValue($process->sleep);
 
-        $this->form()->define(
-            'config.rest',
-            fn ($resolver) => $resolver->fromInput(
-                fn ($value) => number(
-                    label: 'Rest',
-                    required: true,
-                    default: $value ?? $process->rest ?? '',
-                    hint: 'Seconds to rest between jobs',
-                ),
-            )->setLabel('Rest'),
-            'rest',
-        )->setPreviousValue($process->rest);
+            $this->form()->define(
+                'config.rest',
+                fn ($resolver) => $resolver->fromInput(
+                    fn ($value) => number(
+                        label: 'Rest',
+                        required: true,
+                        default: $value ?? $process->rest ?? '',
+                        hint: 'Seconds to rest between jobs',
+                    ),
+                )->setLabel('Rest'),
+                'rest',
+            )->setPreviousValue($process->rest);
+        }
 
         $this->form()->define(
             'config.timeout',
@@ -277,6 +321,18 @@ class BackgroundProcessUpdate extends BaseCommand
             )->setLabel('Run in maintenance mode'),
             'run-in-maintenance',
         )->setPreviousValue($process->force);
+    }
+
+    protected function rejectManagedQueueOptions(): void
+    {
+        $passed = collect($this->managedQueueRejects)->filter(fn (string $option) => filled($this->option($option)));
+
+        if ($passed->isNotEmpty()) {
+            $this->failAndExit(sprintf(
+                'Managed queue workers do not support %s.',
+                $passed->map(fn (string $option) => '--'.$option)->join(', ', ' or '),
+            ));
+        }
     }
 
     protected function promptForNewTypeFields(BackgroundProcess $process): void
