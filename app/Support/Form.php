@@ -74,12 +74,13 @@ class Form
         $scopedKey = $this->scopedKey($key);
         $optionOrArgKey = $optionOrArgKey ?? str($key)->replace('_', '-')->toString();
 
-        // A scoped field belongs to a nested resource, so the command's own options are not its input.
-        $argOrOptionValue = $this->scope === null
-            ? $this->options[$optionOrArgKey] ?? $this->arguments[$optionOrArgKey] ?? null
-            : null;
-
         $resolutionType = array_key_exists($optionOrArgKey, $this->options) ? 'option' : 'argument';
+
+        // A scoped field belongs to a nested resource, so the command's own options are not its input.
+        // An unset option must not fall through to an argument of the same name, such as Symfony's own "command".
+        $argOrOptionValue = $this->scope === null
+            ? ($resolutionType === 'option' ? $this->options[$optionOrArgKey] : $this->arguments[$optionOrArgKey] ?? null)
+            : null;
 
         $this->fields[$scopedKey] ??= [
             'resolver' => new ValueResolver(
