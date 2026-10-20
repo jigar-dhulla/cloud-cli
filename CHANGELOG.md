@@ -1,6 +1,40 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/cloud-cli/compare/v0.6.7...main)
+## [Unreleased](https://github.com/laravel/cloud-cli/compare/v0.7.0...main)
+
+## [v0.7.0](https://github.com/laravel/cloud-cli/compare/v0.6.7...v0.7.0) - 2026-10-20
+
+### What's Changed
+
+* fix: offer current-generation sizes in managed-queue:create by [@florianbeer](https://github.com/florianbeer) in https://github.com/laravel/cloud-cli/pull/265
+* Paginate and filter environment logs by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/260
+* Use hibernation_timeout, sleep_with_app and probes for instances by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/248
+* Add edge networks and build/cluster options to environment:create by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/256
+* Add bulk deletion to managed-queue:delete-failed-job by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/249
+* Add cache hibernation and type-driven eviction policy by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/252
+* Send bucket cors_settings and location_hint by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/253
+* Align database cluster create and update with the API spec by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/254
+* Expose all environment update fields by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/259
+* Add API filters to list commands by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/264
+* Add Cloudflare strategy and downtime options to domains by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/250
+* Drop updatedAt fields the API never returns by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/269
+* Align Deployment DTO with the API response by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/268
+* Read database status by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/267
+* Read all database snapshot attributes by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/266
+* Fix application avatar upload by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/278
+* Read nested database usage metrics by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/270
+* Let domain:create skip the www redirect by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/275
+* Hide retired database types when creating a cluster by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/272
+* Require a timeout when enabling cache hibernation by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/271
+* Fix type changes and command overwrites in background-process:update by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/274
+* Request the includes that DTO relationship fields need by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/276
+* Add preset and config flags to database-cluster:create by [@joetannenbaum](https://github.com/joetannenbaum) in https://github.com/laravel/cloud-cli/pull/273
+
+### New Contributors
+
+* [@florianbeer](https://github.com/florianbeer) made their first contribution in https://github.com/laravel/cloud-cli/pull/265
+
+**Full Changelog**: https://github.com/laravel/cloud-cli/compare/v0.6.7...v0.7.0
 
 ## [v0.6.7](https://github.com/laravel/cloud-cli/compare/v0.6.6...v0.6.7) - 2026-10-16
 
