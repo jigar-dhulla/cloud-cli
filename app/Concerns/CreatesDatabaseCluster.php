@@ -238,7 +238,8 @@ trait CreatesDatabaseCluster
 
         foreach (self::DATABASE_CLUSTER_CONFIG_FIELDS as $name) {
             $option = str_replace('_', '-', $name);
-            $value = $this->hasOption($option) ? $this->option($option) : null;
+            // The custom config prompts start from the flag, so their answer wins once the API has asked for a new one.
+            $value = $this->form()->get('config.'.$name, $this->hasOption($option) ? $this->option($option) : null);
 
             if ($value === null) {
                 continue;
@@ -277,7 +278,7 @@ trait CreatesDatabaseCluster
             $name = $schema['name'];
             $fieldType = $schema['type'] ?? 'string';
             $required = $schema['required'] ?? false;
-            $description = $schema['description'] ?? null;
+            $description = $schema['description'] ?? '';
             $min = $schema['min'] ?? null;
             $max = $schema['max'] ?? null;
             $enum = $schema['enum'] ?? [];

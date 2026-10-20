@@ -3,6 +3,7 @@
 namespace App\Concerns;
 
 use App\Dto\DatabaseType;
+use RuntimeException;
 
 trait CoercesDatabaseClusterConfig
 {
@@ -22,11 +23,23 @@ trait CoercesDatabaseClusterConfig
             return null;
         }
 
-        return match ($fieldType) {
-            'integer' => (int) $value,
-            'number' => (float) $value,
-            'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            default => $value,
+        [$filter, $expected] = match ($fieldType) {
+            'integer' => [FILTER_VALIDATE_INT, 'a whole number'],
+            'number' => [FILTER_VALIDATE_FLOAT, 'a number'],
+            'boolean' => [FILTER_VALIDATE_BOOLEAN, 'true or false'],
+            default => [null, null],
         };
+
+        if ($filter === null) {
+            return $value;
+        }
+
+        $parsed = filter_var($value, $filter, FILTER_NULL_ON_FAILURE);
+
+        if ($parsed === null) {
+            throw new RuntimeException(sprintf('Invalid --%s value "%s". Must be %s.', str_replace('_', '-', $key), $value, $expected));
+        }
+
+        return $parsed;
     }
 }
