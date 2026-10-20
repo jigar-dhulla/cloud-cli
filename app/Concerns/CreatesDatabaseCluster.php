@@ -44,7 +44,7 @@ trait CreatesDatabaseCluster
             'Fetching database types...',
         );
 
-        $types = collect($types);
+        $types = collect($types)->reject(fn (DatabaseType $type) => $type->isRetired())->values();
 
         $this->form()->prompt(
             'type',
@@ -59,6 +59,14 @@ trait CreatesDatabaseCluster
         );
 
         $selectedType = $types->firstWhere('type', $this->form()->get('type'));
+
+        if ($selectedType === null) {
+            throw new RuntimeException(sprintf(
+                'Invalid --type value "%s". Must be one of: %s (pass the version with --engine-version)',
+                $this->form()->get('type'),
+                $types->pluck('type')->implode(', '),
+            ));
+        }
 
         // Newest first so the default lands on the version most users want.
         $versionOptions = collect($selectedType->versions)

@@ -11,10 +11,14 @@ use App\Dto\DatabaseCluster;
 use App\Dto\DatabasePreset;
 use App\Dto\DatabaseType;
 use App\Enums\DatabaseClusterPreset;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Sleep;
+use Laravel\Prompts\Key;
+use Laravel\Prompts\Prompt;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Tests\Fixtures\InteractiveDatabaseClusterCreateCommand;
 
 beforeEach(function () {
     Sleep::fake();
@@ -186,6 +190,44 @@ it('creates an RDS cluster from the presets the API offers', function () {
 
     expect($sentBody()['type'])->toBe('aws_rds_postgres')
         ->and($sentBody()['config'])->toBe(databasePresetsResponse('aws_rds_postgres')['data'][0]['config']);
+});
+
+it('rejects a retired type before fetching presets', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql_84',
+        '--engine-version' => '8.4',
+        '--region' => 'us-east-1',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    MockClient::global()->assertNotSent(ListDatabasePresetsRequest::class);
+
+    expect($sentBody())->toBeNull();
+});
+
+it('leaves retired types out of the type picker', function () {
+    Artisan::registerCommand(new InteractiveDatabaseClusterCreateCommand);
+
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    Prompt::fake([
+        // Wraps to the last option, which would be a retired type if the picker listed them.
+        Key::UP,
+        Key::ENTER,
+        // Accept the first preset.
+        Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-database-cluster-create', [
+        '--name' => 'my-cluster',
+        '--engine-version' => '18',
+        '--region' => 'us-east-1',
+    ])->assertSuccessful();
+
+    expect($sentBody()['type'])->toBe('neon_serverless_postgres');
 });
 
 it('fails when the API offers no presets and the run is not interactive', function () {

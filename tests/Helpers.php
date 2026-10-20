@@ -476,6 +476,21 @@ function versionlessDatabaseTypesResponse(): array
                     ['name' => 'retention_days', 'type' => 'integer', 'required' => true, 'example' => '0'],
                 ],
             ],
+            // Retired types follow the current ones, with no versions.
+            [
+                'type' => 'laravel_mysql_84',
+                'label' => 'Laravel MySQL 8.4',
+                'versions' => [],
+                'regions' => ['us-east-1'],
+                'config_schema' => [],
+            ],
+            [
+                'type' => 'neon_serverless_postgres_18',
+                'label' => 'Laravel Serverless Postgres 18',
+                'versions' => [],
+                'regions' => ['us-east-1'],
+                'config_schema' => [],
+            ],
         ],
     ];
 }

@@ -20,6 +20,17 @@ class DatabaseType extends Data
     }
 
     /**
+     * Whether this is a retired type that baked the version into its name.
+     *
+     * The API still lists these so older clients keep working, but they carry no
+     * versions and the presets endpoint rejects them.
+     */
+    public function isRetired(): bool
+    {
+        return $this->versions === [];
+    }
+
+    /**
      * Get the newest version a cluster of this type may be created with.
      */
     public function latestVersion(): ?string

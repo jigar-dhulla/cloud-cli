@@ -32,9 +32,7 @@ class DatabaseClusterTypes extends BaseCommand
             'Fetching database types...',
         );
 
-        // The API also lists retired types that baked the version into the name; they
-        // carry no versions and only remain so older clients keep working.
-        $items = collect($types)->filter(fn (DatabaseType $type) => $type->versions !== [])->values();
+        $items = collect($types)->reject(fn (DatabaseType $type) => $type->isRetired())->values();
 
         $this->outputJsonIfWanted($items);
 
