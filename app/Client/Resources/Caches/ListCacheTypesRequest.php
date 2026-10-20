@@ -2,7 +2,6 @@
 
 namespace App\Client\Resources\Caches;
 
-use App\Client\Resources\Concerns\AcceptsInclude;
 use App\Dto\CacheType;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
@@ -10,8 +9,6 @@ use Saloon\Http\Response;
 
 class ListCacheTypesRequest extends Request
 {
-    use AcceptsInclude;
-
     protected Method $method = Method::GET;
 
     public function resolveEndpoint(): string

@@ -63,4 +63,9 @@ class WebSocketApplicationsResource extends Resource
             applicationId: $applicationId,
         ));
     }
+
+    public function withDefaultIncludes(): static
+    {
+        return $this->include('server');
+    }
 }

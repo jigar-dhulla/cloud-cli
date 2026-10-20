@@ -2,6 +2,7 @@
 
 namespace App\Dto;
 
+use App\Client\JsonApiTransformer;
 use App\Enums\DeploymentStatus;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
@@ -33,7 +34,7 @@ class Deployment extends Data
         public readonly bool $usesHibernation = false,
         public readonly ?int $hibernationWakeUpInterval = null,
         public readonly ?Environment $environment = null,
-        public readonly ?string $initiatorId = null,
+        public readonly ?User $initiator = null,
     ) {
         //
     }
@@ -130,9 +131,9 @@ class Deployment extends Data
             $transformed['environment'] = Environment::createFromResponse(['data' => $env, 'included' => $response['included'] ?? []]);
         }
 
-        if (isset($relationships['initiator']['data']['id'])) {
-            $transformed['initiatorId'] = $relationships['initiator']['data']['id'];
-        }
+        $initiator = JsonApiTransformer::resolveIncluded($response['included'] ?? [], $relationships['initiator'] ?? null, 'users');
+
+        $transformed['initiator'] = $initiator ? User::createFromResponse(['data' => $initiator]) : null;
 
         return self::from($transformed);
     }

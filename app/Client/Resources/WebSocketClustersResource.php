@@ -72,4 +72,9 @@ class WebSocketClustersResource extends Resource
 
         return $request->createDtoFromResponse($response);
     }
+
+    public function withDefaultIncludes(): static
+    {
+        return $this->include('applications');
+    }
 }
