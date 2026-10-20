@@ -247,6 +247,148 @@ it('fails when the API offers no presets and the run is not interactive', functi
     expect($sentBody())->toBeNull();
 });
 
+it('uses the requested preset when not interactive', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--preset' => 'PROD',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['config'])->toBe(databasePresetsResponse('laravel_mysql')['data'][1]['config']);
+});
+
+it('rejects a preset the API does not offer', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--preset' => 'huge',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    expect($sentBody())->toBeNull();
+});
+
+it('lets config flags override the preset', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--size' => 'mysql-pro-4gb',
+        '--storage' => '50',
+        '--is-public' => 'true',
+        '--maintenance-window' => 'sun:06:00-sun:06:30',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['config'])->toBe([
+        'size' => 'mysql-pro-4gb',
+        'storage' => 50,
+        'retention_days' => 1,
+        'uses_scheduled_snapshots' => false,
+        'is_public' => true,
+        'maintenance_window' => 'sun:06:00-sun:06:30',
+    ]);
+});
+
+it('sends Neon compute flags as numbers', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'neon_serverless_postgres',
+        '--region' => 'us-east-1',
+        '--cu-max' => '2',
+        '--suspend-seconds' => '0',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sentBody()['config'])->toBe([
+        'cu_min' => 0.25,
+        'cu_max' => 2.0,
+        'suspend_seconds' => 0,
+        'retention_days' => 0,
+    ]);
+});
+
+it('rejects a config flag that does not apply to the type', function () {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        '--cu-min' => '1',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    expect($sentBody())->toBeNull();
+});
+
+it('rejects a config flag value that does not parse', function (string $option, string $value) {
+    $sentBody = setupDatabaseClusterCreateMocks();
+
+    $this->artisan('database-cluster:create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--region' => 'us-east-1',
+        $option => $value,
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    expect($sentBody())->toBeNull();
+})->with([
+    'boolean' => ['--is-public', 'ture'],
+    'integer' => ['--storage', 'abc'],
+]);
+
+it('sends the corrected custom value after the API rejects a flag', function () {
+    Artisan::registerCommand(new InteractiveDatabaseClusterCreateCommand);
+
+    setupDatabaseClusterCreateMocks();
+
+    $bodies = [];
+
+    MockClient::global()->addResponses([
+        CreateDatabaseClusterRequest::class => function (PendingRequest $request) use (&$bodies) {
+            $bodies[] = $request->body()->all();
+
+            return count($bodies) === 1
+                ? MockResponse::make(['message' => 'Invalid size.', 'errors' => ['config.size' => ['The selected size is invalid.']]], 422)
+                : MockResponse::make(databaseClusterResponse(), 201);
+        },
+    ]);
+
+    Prompt::fake([
+        // Custom is the last configuration option.
+        Key::UP, Key::ENTER,
+        // Accept the defaults for storage, retention days, scheduled snapshots, public and maintenance window.
+        Key::ENTER, Key::ENTER, Key::ENTER, Key::ENTER, Key::ENTER,
+        // Replace the rejected size.
+        ...array_fill(0, strlen('bogus'), Key::BACKSPACE), ...str_split('db-flex.m-1vcpu-1gb'), Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-database-cluster-create', [
+        '--name' => 'my-cluster',
+        '--type' => 'laravel_mysql',
+        '--engine-version' => '8.4',
+        '--region' => 'us-east-1',
+        '--size' => 'bogus',
+    ])->assertSuccessful();
+
+    expect($bodies)->toHaveCount(2)
+        ->and($bodies[0]['config']['size'])->toBe('bogus')
+        ->and($bodies[1]['config']['size'])->toBe('db-flex.m-1vcpu-1gb');
+});
+
 it('summarises a MySQL preset from its API size', function () {
     $summary = DatabaseClusterPreset::LaravelMysql->description()(databasePresetsResponse('laravel_mysql')['data'][0]['config']);
 
