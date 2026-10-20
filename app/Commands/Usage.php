@@ -7,6 +7,7 @@ use App\Dto\UsageApplication;
 use App\Dto\UsageBucket;
 use App\Dto\UsageCache;
 use App\Dto\UsageDatabase;
+use App\Dto\UsageDatabaseMetric;
 use App\Dto\UsageWebsocket;
 use App\Support\Formatter;
 
@@ -181,6 +182,7 @@ class Usage extends BaseCommand
                 'Type',
                 'Storage',
                 'Compute',
+                'Data Transfer',
                 'Backups',
                 'Total',
             ],
@@ -191,18 +193,10 @@ class Usage extends BaseCommand
                     $i === count($databases) - 1,
                 ),
                 wordwrap($item->type, 20, "\n"),
-                $this->totalWithSubText(
-                    $item->storageCents,
-                    Formatter::gigabyte($item->storageGb),
-                ),
-                $this->totalWithSubText(
-                    $item->computeCents,
-                    round($item->computeUnits, 1).' '.$item->computeUnitLabel,
-                ),
-                $this->totalWithSubText(
-                    $item->backupsCents,
-                    Formatter::gigabyte($item->backupsGb),
-                ),
+                $this->databaseMetric($item->storage),
+                $this->databaseMetric($item->compute),
+                $this->databaseMetric($item->dataTransfer),
+                $this->databaseMetric($item->backup),
                 $this->formatTotal($item->totalCents),
             ])->toArray(),
         );
@@ -338,6 +332,15 @@ class Usage extends BaseCommand
     protected function totalsHeader(string $title, int $totalCents): void
     {
         info($title.' '.$this->dim(Formatter::centsToDollars($totalCents)));
+    }
+
+    protected function databaseMetric(?UsageDatabaseMetric $metric): string
+    {
+        if ($metric === null) {
+            return $this->dim('-');
+        }
+
+        return $this->totalWithSubText($metric->cents, round($metric->units, 1).' '.$metric->unitLabel);
     }
 
     protected function totalWithSubText(?int $cents, string $subText): string
