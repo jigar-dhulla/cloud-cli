@@ -12,6 +12,7 @@ use App\Exceptions\CommandExitException;
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\multiselect;
+use function Laravel\Prompts\number;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
@@ -78,6 +79,12 @@ class CacheUpdate extends BaseCommand
         // A timeout on its own means the user wants hibernation.
         if ($usesHibernation === null && filled($hibernationTimeout)) {
             $usesHibernation = true;
+        }
+
+        // The API requires a timeout whenever hibernation is sent as on, even if the cache already has one.
+        if ($usesHibernation && blank($hibernationTimeout)) {
+            $hibernationTimeout = $cache->hibernationTimeout
+                ?? $this->failAndExit('Pass --hibernation-timeout (1-60 minutes) to enable hibernation.');
         }
 
         spin(
@@ -171,11 +178,14 @@ class CacheUpdate extends BaseCommand
         $this->form()->define(
             'hibernation_timeout',
             fn ($resolver) => $resolver->fromInput(
-                fn ($value) => text(
+                fn ($value) => number(
                     label: 'Minutes idle before hibernating',
-                    default: (string) ($value ?? $cache->hibernationTimeout ?? ''),
-                    hint: 'Leave blank to keep the current setting',
-                    validate: fn ($v) => blank($v) ? null : $this->validateHibernationTimeout($v),
+                    default: (string) ($value ?? $cache->hibernationTimeout ?? '5'),
+                    required: true,
+                    min: 1,
+                    max: 60,
+                    hint: 'From 1 to 60',
+                    validate: fn ($v) => $this->validateHibernationTimeout($v),
                 ),
             ),
             'hibernation-timeout',
@@ -246,8 +256,8 @@ class CacheUpdate extends BaseCommand
             $this->form()->prompt($optionName);
         }
 
-        // Switching hibernation on is the natural moment to pick a timeout, so offer it without making the user select it too.
-        if (! $cache->usesHibernation && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
+        // Switching hibernation on is the natural moment to pick a timeout, and the API needs one, so ask without making the user select it too.
+        if ((! $cache->usesHibernation || $cache->hibernationTimeout === null) && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
             $this->form()->prompt('hibernation_timeout');
         }
 

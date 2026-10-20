@@ -12,6 +12,7 @@ use App\Enums\CacheEvictionPolicy;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\intro;
+use function Laravel\Prompts\number;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
@@ -173,11 +174,15 @@ class CacheCreate extends BaseCommand
         if ($this->isInteractive() && $usesHibernation) {
             $this->form()->prompt(
                 'hibernation_timeout',
-                fn ($resolver) => $resolver->fromInput(fn (?string $value) => text(
+                fn ($resolver) => $resolver->fromInput(fn (?string $value) => number(
                     label: 'Minutes idle before hibernating',
-                    default: $value ?? '',
-                    hint: 'Leave blank to use the default',
-                    validate: fn ($value) => blank($value) ? null : $this->validateHibernationTimeout($value),
+                    // Matches the dashboard's default; the API itself has none.
+                    default: $value ?? '5',
+                    required: true,
+                    min: 1,
+                    max: 60,
+                    hint: 'From 1 to 60',
+                    validate: fn ($value) => $this->validateHibernationTimeout($value),
                 )),
             );
         } else {
@@ -185,6 +190,10 @@ class CacheCreate extends BaseCommand
         }
 
         $hibernationTimeout = $this->form()->get('hibernation_timeout');
+
+        if ($usesHibernation && blank($hibernationTimeout)) {
+            $this->failAndExit('Pass --hibernation-timeout (1-60 minutes) to enable hibernation.');
+        }
 
         $this->form()->define('cluster_id', fn ($resolver) => $resolver);
 
@@ -199,7 +208,7 @@ class CacheCreate extends BaseCommand
                     isPublic: $this->form()->boolean('is_public'),
                     evictionPolicy: $this->form()->get('eviction_policy'),
                     usesHibernation: $usesHibernation,
-                    hibernationTimeout: $usesHibernation && filled($hibernationTimeout) ? (int) $hibernationTimeout : null,
+                    hibernationTimeout: $usesHibernation ? (int) $hibernationTimeout : null,
                     clusterId: $this->form()->get('cluster_id'),
                 ),
             ),

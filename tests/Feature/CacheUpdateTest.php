@@ -7,9 +7,13 @@ use App\Client\Resources\Caches\UpdateCacheRequest;
 use App\Commands\CacheUpdate;
 use App\ConfigRepository;
 use App\Dto\Cache;
+use Illuminate\Support\Facades\Artisan;
+use Laravel\Prompts\Key;
+use Laravel\Prompts\Prompt;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Tests\Fixtures\InteractiveCacheUpdateCommand;
 
 beforeEach(function () {
     $this->mockConfig = Mockery::mock(ConfigRepository::class);
@@ -21,12 +25,12 @@ afterEach(function () {
     MockClient::destroyGlobal();
 });
 
-function setupCacheUpdateMocks(): Closure
+function setupCacheUpdateMocks(array $cacheAttributes = []): Closure
 {
     $sentBody = new stdClass;
 
     MockClient::global([
-        GetCacheRequest::class => MockResponse::make(['data' => cacheResponse()], 200),
+        GetCacheRequest::class => MockResponse::make(['data' => cacheResponse(['attributes' => $cacheAttributes])], 200),
         ListCacheTypesRequest::class => MockResponse::make([
             'data' => [
                 [
@@ -128,8 +132,8 @@ it('treats a timeout on its own as enabling hibernation', function () {
     expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => 30]);
 });
 
-it('enables hibernation without a timeout', function () {
-    $sentBody = setupCacheUpdateMocks();
+it('keeps the current timeout when enabling hibernation without one', function () {
+    $sentBody = setupCacheUpdateMocks(['uses_hibernation' => true, 'hibernation_timeout' => 10]);
 
     $this->artisan('cache:update', [
         'cache' => 'cache-1',
@@ -137,8 +141,41 @@ it('enables hibernation without a timeout', function () {
         '--no-interaction' => true,
     ])->assertSuccessful();
 
-    expect($sentBody())->toBe(['uses_hibernation' => true]);
+    expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => 10]);
 });
+
+it('requires a timeout to enable hibernation when the cache has none', function () {
+    setupCacheUpdateMocks();
+
+    $this->artisan('cache:update', [
+        'cache' => 'cache-1',
+        '--uses-hibernation' => 'true',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    MockClient::global()->assertNotSent(UpdateCacheRequest::class);
+});
+
+it('asks for a timeout when hibernation is switched on interactively', function (?int $storedTimeout, array $timeoutKeys, int $expectedTimeout) {
+    Artisan::registerCommand(new InteractiveCacheUpdateCommand);
+
+    $sentBody = setupCacheUpdateMocks(['uses_hibernation' => false, 'hibernation_timeout' => $storedTimeout]);
+
+    Prompt::fake([
+        // Hibernation is second to last in the update menu.
+        Key::UP, Key::UP, Key::SPACE, Key::ENTER,
+        // Turn it on.
+        'y', Key::ENTER,
+        ...$timeoutKeys,
+    ]);
+
+    $this->artisan('test:interactive-cache-update', ['cache' => 'cache-1'])->assertSuccessful();
+
+    expect($sentBody())->toBe(['uses_hibernation' => true, 'hibernation_timeout' => $expectedTimeout]);
+})->with([
+    'no stored timeout offers the default' => [null, [Key::ENTER], 5],
+    'a stored timeout can be changed' => [10, [Key::BACKSPACE, Key::BACKSPACE, '2', '0', Key::ENTER], 20],
+]);
 
 it('offers every field when the cache type and size support them', function () {
     setupCacheUpdateMocks();
