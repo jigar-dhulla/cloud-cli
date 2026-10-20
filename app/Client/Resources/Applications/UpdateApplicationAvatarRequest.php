@@ -27,6 +27,14 @@ class UpdateApplicationAvatarRequest extends Request implements HasBody
         return "/applications/{$this->data->applicationId}/avatar";
     }
 
+    protected function defaultHeaders(): array
+    {
+        // The connector's JSON:API Content-Type otherwise wins over the multipart one Saloon sets.
+        return [
+            'Content-Type' => 'multipart/form-data; boundary='.$this->body()->getBoundary(),
+        ];
+    }
+
     protected function defaultBody(): array
     {
         return $this->data->toRequestData();
