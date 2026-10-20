@@ -98,6 +98,46 @@ it('defaults downtime to match the chosen verification method', function (array 
     'real-time allows downtime' => [[Key::DOWN, Key::ENTER], true],
 ]);
 
+it('omits the www redirect when none is passed', function () {
+    $this->artisan('domain:create', [
+        'environment' => 'env-1',
+        '--name' => 'example.com',
+        '--www-redirect' => 'none',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($this->sent->body)->not->toHaveKey('www_redirect');
+});
+
+it('omits the www redirect when no redirect is chosen interactively', function () {
+    Artisan::registerCommand(new InteractiveDomainCreateCommand);
+
+    Prompt::fake([
+        Key::DOWN, Key::DOWN, Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-domain-create', [
+        'environment' => 'env-1',
+        '--name' => 'example.com',
+        '--wildcard-enabled' => 'false',
+        '--verification-method' => 'pre_verification',
+        '--cloudflare-strategy' => 'none',
+        '--allow-downtime' => 'false',
+    ])->assertSuccessful();
+
+    expect($this->sent->body)->not->toHaveKey('www_redirect');
+});
+
+it('redirects www to root by default', function () {
+    $this->artisan('domain:create', [
+        'environment' => 'env-1',
+        '--name' => 'example.com',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($this->sent->body['www_redirect'])->toBe('www_to_root');
+});
+
 it('leaves the cloudflare strategy and downtime to the API when not passed', function () {
     $this->artisan('domain:create', [
         'environment' => 'env-1',

@@ -19,7 +19,7 @@ class DomainCreate extends BaseCommand
     protected $signature = 'domain:create
                             {environment? : The environment ID or name}
                             {--name= : The domain name}
-                            {--www-redirect= : The redirect strategy}
+                            {--www-redirect= : The www redirect (www_to_root, root_to_www, or none)}
                             {--wildcard-enabled= : Whether to enable wildcard}
                             {--verification-method= : The verification method}
                             {--cloudflare-strategy= : How the domain uses Cloudflare (none, dns, or dns_proxy)}
@@ -65,6 +65,7 @@ class DomainCreate extends BaseCommand
                     options: [
                         'www_to_root' => 'Redirect www to root',
                         'root_to_www' => 'Redirect non-www to www',
+                        'none' => 'No redirect',
                     ],
                     required: true,
                     default: $value ?? 'www_to_root',
@@ -145,7 +146,8 @@ class DomainCreate extends BaseCommand
                 new CreateDomainRequestData(
                     environmentId: $environmentId,
                     name: $this->form()->get('name'),
-                    wwwRedirect: $this->form()->get('www_redirect'),
+                    // The API has no "none" value; leaving the field out is how it skips the www domain.
+                    wwwRedirect: $this->form()->get('www_redirect') === 'none' ? null : $this->form()->get('www_redirect'),
                     wildcardEnabled: $this->form()->boolean('wildcard_enabled'),
                     verificationMethod: $this->form()->get('verification_method'),
                     allowDowntime: $this->form()->boolean('allow_downtime'),
