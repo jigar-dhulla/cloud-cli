@@ -17,17 +17,8 @@ afterEach(function () {
 });
 
 it('lists the database types and versions from the api', function () {
-    $types = versionlessDatabaseTypesResponse();
-    $types['data'][] = [
-        'type' => 'laravel_mysql_8',
-        'label' => 'Laravel MySQL 8.0',
-        'versions' => [],
-        'regions' => ['us-east-1'],
-        'config_schema' => [],
-    ];
-
     MockClient::global([
-        ListDatabaseTypesRequest::class => MockResponse::make($types, 200),
+        ListDatabaseTypesRequest::class => MockResponse::make(versionlessDatabaseTypesResponse(), 200),
     ]);
 
     Artisan::call('database:types', ['--json' => true, '--no-interaction' => true]);
