@@ -205,7 +205,7 @@ class CacheCreate extends BaseCommand
                     isPublic: $this->form()->boolean('is_public'),
                     evictionPolicy: $this->form()->get('eviction_policy'),
                     usesHibernation: $usesHibernation,
-                    hibernationTimeout: $usesHibernation && filled($hibernationTimeout) ? (int) $hibernationTimeout : null,
+                    hibernationTimeout: $usesHibernation ? (int) $hibernationTimeout : null,
                     clusterId: $this->form()->get('cluster_id'),
                 ),
             ),

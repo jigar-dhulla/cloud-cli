@@ -253,8 +253,8 @@ class CacheUpdate extends BaseCommand
             $this->form()->prompt($optionName);
         }
 
-        // The API needs a timeout to turn hibernation on, so ask for one without making the user select it too.
-        if ($cache->hibernationTimeout === null && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
+        // Switching hibernation on is the natural moment to pick a timeout, and the API needs one, so ask without making the user select it too.
+        if ((! $cache->usesHibernation || $cache->hibernationTimeout === null) && $this->form()->boolean('uses_hibernation') && ! in_array('hibernation_timeout', $selection)) {
             $this->form()->prompt('hibernation_timeout');
         }
 

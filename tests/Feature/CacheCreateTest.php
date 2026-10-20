@@ -7,9 +7,14 @@ use App\Client\Resources\Caches\ListCacheTypesRequest;
 use App\Client\Resources\Meta\GetOrganizationRequest;
 use App\Client\Resources\Meta\ListRegionsRequest;
 use App\ConfigRepository;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Artisan;
+use Laravel\Prompts\Key;
+use Laravel\Prompts\Prompt;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Tests\Fixtures\InteractiveCacheCreateCommand;
 
 beforeEach(function () {
     $this->mockConfig = Mockery::mock(ConfigRepository::class);
@@ -122,6 +127,27 @@ it('requires a timeout to enable hibernation', function () {
     $this->artisan('cache:create', cacheCreateArgs(['--uses-hibernation' => 'true']))->assertFailed();
 
     MockClient::global()->assertNotSent(CreateCacheRequest::class);
+});
+
+it('asks for a timeout when hibernation is enabled interactively', function () {
+    Artisan::registerCommand(new InteractiveCacheCreateCommand);
+
+    $sentBody = setupCacheCreateMocks();
+
+    Prompt::fake([
+        // Accept the default timeout.
+        Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-cache-create', array_merge(
+        Arr::except(cacheCreateArgs(), '--no-interaction'),
+        ['--eviction-policy' => 'allkeys-lru', '--uses-hibernation' => 'true'],
+    ))->assertSuccessful();
+
+    expect($sentBody())->toMatchArray([
+        'uses_hibernation' => true,
+        'hibernation_timeout' => 5,
+    ]);
 });
 
 it('treats a timeout on its own as enabling hibernation', function () {
