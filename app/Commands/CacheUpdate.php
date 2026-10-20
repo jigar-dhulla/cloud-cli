@@ -12,6 +12,7 @@ use App\Exceptions\CommandExitException;
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\multiselect;
+use function Laravel\Prompts\number;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
@@ -177,10 +178,12 @@ class CacheUpdate extends BaseCommand
         $this->form()->define(
             'hibernation_timeout',
             fn ($resolver) => $resolver->fromInput(
-                fn ($value) => text(
+                fn ($value) => number(
                     label: 'Minutes idle before hibernating',
                     default: (string) ($value ?? $cache->hibernationTimeout ?? '5'),
                     required: true,
+                    min: 1,
+                    max: 60,
                     hint: 'From 1 to 60',
                     validate: fn ($v) => $this->validateHibernationTimeout($v),
                 ),

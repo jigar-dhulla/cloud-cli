@@ -12,6 +12,7 @@ use App\Enums\CacheEvictionPolicy;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\intro;
+use function Laravel\Prompts\number;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
@@ -173,11 +174,13 @@ class CacheCreate extends BaseCommand
         if ($this->isInteractive() && $usesHibernation) {
             $this->form()->prompt(
                 'hibernation_timeout',
-                fn ($resolver) => $resolver->fromInput(fn (?string $value) => text(
+                fn ($resolver) => $resolver->fromInput(fn (?string $value) => number(
                     label: 'Minutes idle before hibernating',
                     // Matches the dashboard's default; the API itself has none.
                     default: $value ?? '5',
                     required: true,
+                    min: 1,
+                    max: 60,
                     hint: 'From 1 to 60',
                     validate: fn ($value) => $this->validateHibernationTimeout($value),
                 )),
