@@ -187,7 +187,7 @@ class ApplicationUpdate extends BaseCommand
         return $this->updateApplication($application);
     }
 
-    protected function getNewAvatar(): array
+    protected function getNewAvatar(): string
     {
         $avatarCandidates = $this->getAvatarCandidatesFromRepo();
 
@@ -206,11 +206,11 @@ class ApplicationUpdate extends BaseCommand
             );
 
             if ($selected !== 'custom') {
-                return $this->getAvatarFromPath($selected);
+                return $selected;
             }
         }
 
-        $path = text(
+        return text(
             label: 'Avatar',
             required: true,
             hint: 'Path or URL to the avatar image',
@@ -219,11 +219,6 @@ class ApplicationUpdate extends BaseCommand
                 default => null,
             },
         );
-
-        return [
-            file_get_contents($path),
-            pathinfo($path, PATHINFO_EXTENSION),
-        ];
     }
 
     protected function getNewDefaultEnvironmentId(Application $application, $value = null): string
