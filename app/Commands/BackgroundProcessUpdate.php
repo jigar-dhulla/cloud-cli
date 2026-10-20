@@ -47,6 +47,11 @@ class BackgroundProcessUpdate extends BaseCommand
 
         $this->defineFields($process);
 
+        // A type passed as a flag skips the update menu, so ask for what the new type needs here.
+        if ($this->isInteractive() && $this->typeChanged($process)) {
+            $this->promptForNewTypeFields($process);
+        }
+
         foreach ($this->form()->filled() as $value) {
             $this->reportChange(
                 $value->label(),
@@ -99,21 +104,12 @@ class BackgroundProcessUpdate extends BaseCommand
             ])
             ->toArray();
 
-        if (! $this->typeChanged($process)) {
-            return $config ?: null;
+        if ($config === []) {
+            return null;
         }
 
-        // The API replaces the whole config and builds the worker command from it, so a switch
-        // to a worker must carry every setting and fails without any.
-        $config = array_merge($process->config ?? [], $config);
-
-        if (empty($config)) {
-            $this->outputErrorOrThrow('Switching to a worker needs its queue settings. Provide them with options such as --connection and --queue.');
-
-            throw new CommandExitException(self::FAILURE);
-        }
-
-        return $config;
+        // A config in the request replaces the stored one, so a switch back to a worker keeps the settings it had.
+        return $this->typeChanged($process) ? array_merge($process->config ?? [], $config) : $config;
     }
 
     protected function targetType(BackgroundProcess $process): string
@@ -168,7 +164,8 @@ class BackgroundProcessUpdate extends BaseCommand
                     fn ($value) => text(
                         label: 'Command',
                         required: true,
-                        default: $value ?? $process->command,
+                        // A worker's command is generated from its config, so it's no starting point for a custom one.
+                        default: $value ?? ($process->type === 'custom' ? $process->command : ''),
                     ),
                 ),
             )->setPreviousValue($process->command);
@@ -282,20 +279,30 @@ class BackgroundProcessUpdate extends BaseCommand
         )->setPreviousValue($process->force);
     }
 
-    /**
-     * @param  array<int, string>  $alreadyPrompted
-     */
-    protected function promptForNewTypeFields(BackgroundProcess $process, array $alreadyPrompted): void
+    protected function promptForNewTypeFields(BackgroundProcess $process): void
     {
         $type = $this->targetType($process);
 
         $this->defineTypeFields($process, $type);
 
-        $keys = $type === 'custom'
-            ? ['command']
-            : ['config.connection', 'config.queue', 'config.tries', 'config.backoff', 'config.sleep', 'config.rest', 'config.timeout', 'config.force'];
+        if ($type === 'custom') {
+            $this->form()->prompt('command');
 
-        foreach (array_diff($keys, $alreadyPrompted) as $key) {
+            return;
+        }
+
+        // Every worker setting is optional: the API falls back to the stored config, then to queue:work's defaults.
+        $options = collect($this->form()->defined())
+            ->filter(fn ($field) => str_starts_with($field->key, 'config.') && ! array_key_exists($field->key, $this->form()->filled()))
+            ->mapWithKeys(fn ($field) => [$field->key => $field->label()])
+            ->toArray();
+
+        $selection = multiselect(
+            label: 'Which worker settings do you want to set?',
+            options: $options,
+        );
+
+        foreach ($selection as $key) {
             $this->form()->prompt($key);
         }
     }
@@ -328,7 +335,7 @@ class BackgroundProcessUpdate extends BaseCommand
         }
 
         if ($this->typeChanged($process)) {
-            $this->promptForNewTypeFields($process, $selection);
+            $this->promptForNewTypeFields($process);
         }
 
         return $this->updateProcess($process);

@@ -4,9 +4,13 @@ use App\Client\Resources\BackgroundProcesses\GetBackgroundProcessRequest;
 use App\Client\Resources\BackgroundProcesses\UpdateBackgroundProcessRequest;
 use App\Client\Resources\Meta\GetOrganizationRequest;
 use App\ConfigRepository;
+use Illuminate\Support\Facades\Artisan;
+use Laravel\Prompts\Key;
+use Laravel\Prompts\Prompt;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Tests\Fixtures\InteractiveBackgroundProcessUpdateCommand;
 
 beforeEach(function () {
     $this->mockConfig = Mockery::mock(ConfigRepository::class);
@@ -81,7 +85,7 @@ it('switches a worker to a custom process', function () {
     ]);
 });
 
-it('switches a custom process to a worker with its full config', function () {
+it('switches a custom process to a worker with the settings given', function () {
     $sent = setupBackgroundProcessUpdateMocks([
         'type' => 'custom',
         'command' => 'php artisan reverb:start',
@@ -127,7 +131,7 @@ it('keeps the stored worker config when switching back to a worker', function ()
         ]);
 });
 
-it('requires worker options when switching to a worker without a stored config', function () {
+it('leaves the config to the API when switching to a worker without settings', function () {
     $sent = setupBackgroundProcessUpdateMocks([
         'type' => 'custom',
         'command' => 'php artisan reverb:start',
@@ -138,9 +142,81 @@ it('requires worker options when switching to a worker without a stored config',
         'process' => 'process-1',
         '--type' => 'worker',
         '--no-interaction' => true,
-    ])->assertFailed();
+    ])->assertSuccessful();
 
-    expect($sent->body)->toBeNull();
+    expect($sent->body)->toBe(['type' => 'worker']);
+});
+
+it('asks for worker settings when switching to a worker from the update menu', function () {
+    Artisan::registerCommand(new InteractiveBackgroundProcessUpdateCommand);
+
+    $sent = setupBackgroundProcessUpdateMocks([
+        'type' => 'custom',
+        'command' => 'php artisan reverb:start',
+        'config' => [],
+    ]);
+
+    Prompt::fake([
+        // Pick Type from the update menu, then Worker.
+        Key::DOWN, Key::SPACE, Key::ENTER,
+        Key::UP, Key::ENTER,
+        // Pick Connection and Queue from the worker settings.
+        Key::SPACE, Key::DOWN, Key::SPACE, Key::ENTER,
+        ...str_split('redis'), Key::ENTER,
+        ...str_split('emails'), Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-background-process-update', ['process' => 'process-1'])->assertSuccessful();
+
+    expect($sent->body)->toBe([
+        'type' => 'worker',
+        'config' => ['connection' => 'redis', 'queue' => 'emails'],
+    ]);
+});
+
+it('asks for the command when --type switches to custom interactively', function () {
+    Artisan::registerCommand(new InteractiveBackgroundProcessUpdateCommand);
+
+    $sent = setupBackgroundProcessUpdateMocks();
+
+    Prompt::fake([
+        ...str_split('php artisan reverb:start'), Key::ENTER,
+        // Confirm the update.
+        Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-background-process-update', [
+        'process' => 'process-1',
+        '--type' => 'custom',
+    ])->assertSuccessful();
+
+    expect($sent->body)->toBe([
+        'type' => 'custom',
+        'command' => 'php artisan reverb:start',
+    ]);
+});
+
+it('lets --type switch to a worker interactively without a stored config', function () {
+    Artisan::registerCommand(new InteractiveBackgroundProcessUpdateCommand);
+
+    $sent = setupBackgroundProcessUpdateMocks([
+        'type' => 'custom',
+        'command' => 'php artisan reverb:start',
+        'config' => [],
+    ]);
+
+    Prompt::fake([
+        // Set no worker settings, then confirm the update.
+        Key::ENTER,
+        Key::ENTER,
+    ]);
+
+    $this->artisan('test:interactive-background-process-update', [
+        'process' => 'process-1',
+        '--type' => 'worker',
+    ])->assertSuccessful();
+
+    expect($sent->body)->toBe(['type' => 'worker']);
 });
 
 it('leaves the type out when it does not change', function () {
@@ -149,6 +225,22 @@ it('leaves the type out when it does not change', function () {
     $this->artisan('background-process:update', [
         'process' => 'process-1',
         '--type' => 'worker',
+        '--processes' => '3',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sent->body)->toBe(['processes' => 3]);
+});
+
+it('leaves the command alone when updating a custom process', function () {
+    $sent = setupBackgroundProcessUpdateMocks([
+        'type' => 'custom',
+        'command' => 'php artisan reverb:start',
+        'config' => [],
+    ]);
+
+    $this->artisan('background-process:update', [
+        'process' => 'process-1',
         '--processes' => '3',
         '--no-interaction' => true,
     ])->assertSuccessful();
