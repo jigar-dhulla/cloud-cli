@@ -37,6 +37,7 @@ class DeploymentGet extends BaseCommand
             'Commit' => $provider->commitUrl($repository, $deployment->commitHash),
             'Message' => $deployment->commitMessage,
             'Author' => $deployment->commitAuthor ?? '—',
+            'Initiated By' => $deployment->initiator->name ?? '—',
             'Started At' => $deployment->startedAt?->toIso8601String() ?? '—',
             'Finished At' => $deployment->finishedAt?->toIso8601String() ?? '—',
             'Duration' => $deployment->finishedAt ? $deployment->totalTime()->format('%I:%S') : '—',

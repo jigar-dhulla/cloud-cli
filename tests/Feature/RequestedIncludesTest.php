@@ -2,7 +2,9 @@
 
 use App\Client\Connector;
 use App\Client\Resources\Applications\ListApplicationsRequest;
+use App\Client\Resources\Caches\GetCacheRequest;
 use App\Client\Resources\Caches\ListCachesRequest;
+use App\Client\Resources\Caches\ListCacheTypesRequest;
 use App\Client\Resources\Deployments\GetDeploymentRequest;
 use App\Client\Resources\Environments\GetEnvironmentRequest;
 use App\Client\Resources\Meta\GetOrganizationRequest;
@@ -66,6 +68,29 @@ it('lists the environments attached to each cache', function () {
     Artisan::call('cache:list', ['--json' => true]);
 
     expect(json_decode(Artisan::output(), true)[0]['environmentIds'])->toBe(['env-1']);
+});
+
+it('gets the environments attached to a cache', function () {
+    MockClient::global([
+        GetOrganizationRequest::class => MockResponse::make(organizationResponse()),
+        GetCacheRequest::class => respondWithRequestedIncludes(cacheResponse(), [
+            'environments' => [['id' => 'env-1', 'type' => 'environments']],
+        ], single: true),
+    ]);
+
+    Artisan::call('cache:get', ['cache' => 'cache-1', '--json' => true]);
+
+    expect(json_decode(Artisan::output(), true)['environmentIds'])->toBe(['env-1']);
+});
+
+it('sends no includes when listing cache types', function () {
+    $mockClient = new MockClient([
+        ListCacheTypesRequest::class => MockResponse::make(['data' => []]),
+    ]);
+
+    connectorWith($mockClient)->caches()->types();
+
+    $mockClient->assertSent(fn ($request, $response) => $response->getPendingRequest()->query()->get('include') === null);
 });
 
 it('lists the default environment of each application', function () {
