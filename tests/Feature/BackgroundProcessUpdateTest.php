@@ -2,6 +2,7 @@
 
 use App\Client\Resources\BackgroundProcesses\GetBackgroundProcessRequest;
 use App\Client\Resources\BackgroundProcesses\UpdateBackgroundProcessRequest;
+use App\Client\Resources\Instances\GetInstanceRequest;
 use App\Client\Resources\Meta\GetOrganizationRequest;
 use App\ConfigRepository;
 use Illuminate\Support\Facades\Artisan;
@@ -49,7 +50,7 @@ function backgroundProcessResponse(array $attributes = []): array
     ]];
 }
 
-function setupBackgroundProcessUpdateMocks(array $attributes = []): stdClass
+function setupBackgroundProcessUpdateMocks(array $attributes = [], string $instanceType = 'app'): stdClass
 {
     $sent = new stdClass;
     $sent->body = null;
@@ -59,6 +60,19 @@ function setupBackgroundProcessUpdateMocks(array $attributes = []): stdClass
     MockClient::global([
         GetOrganizationRequest::class => MockResponse::make(organizationResponse(), 200),
         GetBackgroundProcessRequest::class => MockResponse::make($process, 200),
+        GetInstanceRequest::class => MockResponse::make(['data' => [
+            'id' => 'inst-1',
+            'type' => 'instances',
+            'attributes' => [
+                'name' => 'jobs',
+                'type' => $instanceType,
+                'size' => 'flex.c-1vcpu-256mb',
+                'scaling_type' => 'none',
+                'min_replicas' => 0,
+                'max_replicas' => 1,
+                'uses_scheduler' => false,
+            ],
+        ]], 200),
         UpdateBackgroundProcessRequest::class => function (PendingRequest $request) use ($sent, $process) {
             $sent->body = $request->body()->all();
 
@@ -246,4 +260,78 @@ it('leaves the command alone when updating a custom process', function () {
     ])->assertSuccessful();
 
     expect($sent->body)->toBe(['processes' => 3]);
+});
+
+it('keeps the stored worker config when changing one setting', function () {
+    $sent = setupBackgroundProcessUpdateMocks();
+
+    $this->artisan('background-process:update', [
+        'process' => 'process-1',
+        '--tries' => '5',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sent->body)->toEqual([
+        'type' => 'worker',
+        'config' => [
+            'connection' => 'database',
+            'queue' => 'default',
+            'tries' => 5,
+            'backoff' => 30,
+            'sleep' => 10,
+            'rest' => 0,
+            'timeout' => 60,
+            'force' => false,
+        ],
+    ]);
+});
+
+function managedQueueWorkerAttributes(): array
+{
+    return [
+        'command' => 'php artisan queue:work cloud --queue=jobs --sleep=0',
+        'config' => [
+            'connection' => 'cloud',
+            'queue' => 'jobs',
+            'tries' => 1,
+            'backoff' => 30,
+            'sleep' => 0,
+            'rest' => 0,
+            'timeout' => 60,
+            'force' => false,
+        ],
+    ];
+}
+
+it('leaves out the settings a managed queue rejects when changing one setting', function () {
+    $sent = setupBackgroundProcessUpdateMocks(managedQueueWorkerAttributes(), 'managed_queue');
+
+    $this->artisan('background-process:update', [
+        'process' => 'process-1',
+        '--tries' => '5',
+        '--no-interaction' => true,
+    ])->assertSuccessful();
+
+    expect($sent->body)->toEqual([
+        'type' => 'worker',
+        'config' => [
+            'tries' => 5,
+            'backoff' => 30,
+            'timeout' => 60,
+            'force' => false,
+        ],
+    ]);
+});
+
+it('rejects the options a managed queue sets itself', function () {
+    $sent = setupBackgroundProcessUpdateMocks(managedQueueWorkerAttributes(), 'managed_queue');
+
+    $this->artisan('background-process:update', [
+        'process' => 'process-1',
+        '--queue' => 'emails',
+        '--sleep' => '3',
+        '--no-interaction' => true,
+    ])->assertFailed();
+
+    expect($sent->body)->toBeNull();
 });
